@@ -15,8 +15,8 @@ function isELF() {
 const TABS = [
   { id: 'inspect', label: 'INSPECT', enabled: () => isELF() },
   { id: 'hex',     label: 'HEX',     enabled: () => hasFile() },
-  { id: 'disasm',  label: 'DISASM',  enabled: () => false },
-  { id: 'emu',     label: 'EMU',     enabled: () => false },
+  { id: 'disasm',  label: 'DISASM',  enabled: () => hasFile() },
+  { id: 'emu',     label: 'EMU',     enabled: () => hasFile() },
   { id: 'trace',   label: 'TRACE',   enabled: () => false }
 ];
 

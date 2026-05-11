@@ -5,6 +5,8 @@ import { createStatusBar } from './shell/statusbar.js';
 import { createEmpty } from './modules/empty.js';
 import { createHex } from './modules/hex.js';
 import { createInspect } from './modules/inspect.js';
+import { createDisasm } from './modules/disasm.js';
+import { createEmu } from './modules/emu.js';
 import { fileStore } from './stores/file.js';
 import { router } from './stores/router.js';
 import { detectFormat } from './format/detect.js';
@@ -38,7 +40,9 @@ function mount() {
   const factories = {
     empty:   createEmpty,
     hex:     createHex,
-    inspect: createInspect
+    inspect: createInspect,
+    disasm:  createDisasm,
+    emu:     createEmu
   };
   const mounted = {};
 
