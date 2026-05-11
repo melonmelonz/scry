@@ -712,9 +712,9 @@
       Scry takes a binary and shows you what it would do, <em>without leaving your browser tab.</em>
     </h1>
     <div class="hero-foot">
-      <span>Status · Draft</span>
-      <span>Build Window · 7 Days</span>
-      <span>Stack · Rust → WASM + Svelte</span>
+      <span>Status &middot; v1 shipped &middot; v2 scaffolded</span>
+      <span>Build Window &middot; 7 days (closed)</span>
+      <span>Stack &middot; V1 vanilla JS &middot; V2 Rust&rarr;WASM + Svelte 5</span>
       <span class="swatches">
         <span class="swatch" style="background:#FAF8F2"></span>
         <span class="swatch" style="background:#DEDDD7"></span>
@@ -724,6 +724,23 @@
       </span>
     </div>
   </section>
+
+  <!-- ─── 00 STATUS ─── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">00</span>
+      <span class="sec-title">Status &amp; roadmap.</span>
+      <span class="sec-tag">Updated 2026-05-11</span>
+    </div>
+    <div class="prose">
+      <p><span class="ink">Two engines, one shell.</span> The live site at <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">goolz.org/scry</code> is a single app. A top-bar mode picker swaps between <span class="ink">V1 &middot; PURE</span> (hand-rolled vanilla JS, HTML, CSS &mdash; no framework, no bundler, no runtime dependency) and <span class="ink">V2 &middot; RUST &middot; WASM</span> (Rust core compiled to WebAssembly, Svelte 5 + Vite shell). Dark mode and state live at the shell level so flipping engines feels like flipping a switch on the same instrument.</p>
+      <p><span class="ink">Shipped.</span> V1 covers all five modules (Inspect, Hex, Disasm, Emu, Trace) on the synthetic-bus spine in §02. ELF parser is bounds-checked, drag-drop is size-capped, sample-manifest entries are whitelisted. V2 ships Inspect and Hex against the Rust core via <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">goblin</code>.</p>
+      <p><span class="ink">Next.</span> Port the V1 RV32IMA decoder and interpreter into Rust so V2's Disasm and Emu panes light up. Then re-route the synthetic bus stream through the Rust core so V2 has its own Trace pane. Stretch: real <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">.sal</code> capture ingest, headers-only PE/Mach-O inspect.</p>
+      <p><span class="ink">Direction shifts from the original spec.</span> Two builds instead of one, dark mode now in scope, x86_64 disassembly dropped, synthetic-bus tracing replacing Saleae ingest for v1. Everything else in this document still holds.</p>
+    </div>
+  </section>
+
+  <hr class="rule">
 
   <!-- ─── 01 WHAT ─── -->
   <section>

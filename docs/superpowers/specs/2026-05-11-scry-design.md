@@ -3,10 +3,100 @@
 > **Scry takes a binary and shows you what it would do, without leaving your browser tab.**
 
 **Date:** 2026-05-11
-**Status:** Draft for review
-**Repo:** `~/dev/scry` (new) — source
+**Status:** v1 shipped (pure JS). v2 scaffolded (Rust → WASM, Svelte 5, Vite). Unified shell live.
+**Repo:** `~/dev/scry` — `github.com/melonmelonz/scry`
 **Deploy:** `~/dev/goolz/scry/` (artifacts synced from `web/dist/`)
 **Live:** `goolz.org/scry`
+
+---
+
+## 0. Status & roadmap (2026-05-11 EOD)
+
+> This section supersedes parts of §4, §8, §10, and §11 below. The original
+> spec assumed a single Rust+Svelte build. Reality forked into two engines,
+> on purpose, and they now live behind one shell.
+
+### What shipped
+
+- **Unified shell** at `goolz.org/scry`. Top bar carries the brand, a mode
+  picker (V1·PURE / V2·RUST·WASM), and a theme toggle. The selected engine
+  is loaded into an iframe; the shell owns dark mode and propagates it via
+  `postMessage`. Mode persists in `localStorage` + URL hash (`#v1` / `#v2`).
+  Direct routes `/scry/v1/` and `/scry/v2/` still work standalone.
+- **V1 — pure-JS workbench (load-bearing).** Every file under `web/v1/` is
+  hand-written vanilla JS / HTML / CSS. No framework, no bundler, no
+  runtime dependency. Modules:
+  - Empty (drop, samples picker, format sniff, dark mode)
+  - Inspect (hand-rolled ELF parser with bounds-checked DataView reads)
+  - Hex (virtualized scroll, click-to-select byte detail)
+  - Disasm (hand-decoded RV32IMA listing, symbol resolution, goto, syscall hints)
+  - Emu (RV32IMA interpreter with state badges, halt/fault reasons, MMIO)
+  - Trace (SPI + I2C decoders over the emu's MMIO bus log, click-for-detail)
+  - Shared store: 30-line pub/sub `Store` in `web/v1/js/store.js`
+  - Routing: URL hash
+  - Status bar with per-module hint propagation (`stores/hint.js`)
+  - Cross-module navigation (`stores/nav.js` — inspect symbol → disasm at addr)
+  - Dark mode via CSS custom properties + `[data-theme]` + `prefers-color-scheme`
+- **V2 — Rust → WASM scaffold.** Cargo workspace + `rust/scry-core/`
+  exposing `parse_elf` (goblin), `detect_format`, `hex_rows` via
+  `wasm-bindgen` + `serde-wasm-bindgen`. Svelte 5 (runes) + Vite shell at
+  `web/v2/` with Drop, Inspect (Summary/Sections/Segments/Symbols), and Hex
+  panels reading directly from the wasm module.
+- **Build pipeline.** `scripts/build.sh` chains Rust → `wasm-pack` → Vite
+  → rsync, then minifies V1 in place using the `esbuild` binary bundled
+  with Vite's dev deps. `scripts/deploy.sh` rsyncs to the goolz Pages repo
+  and pushes (ASCII-only commit message per the known wrangler constraint).
+- **Hardening.**
+  - ELF parser bounds-checks every header field. Malformed input throws a
+    clean `malformed ELF: …` instead of a raw DataView `RangeError`.
+  - Section/segment/symbol counts capped (65_535 / 65_535 / 1_000_000).
+  - Sample-manifest filenames whitelisted by regex (`/^[A-Za-z0-9._-]+\.elf$/`)
+    and URL-encoded before fetch.
+  - Drag-drop ingestion capped at 64 MiB.
+
+### Direction shift vs. the original spec
+
+- **Two engines, not one.** The spec assumed Svelte+Rust from day one. The
+  pure-JS V1 came first because the receipt "I can build the primitives"
+  is the load-bearing claim of this project; V2 was layered on top later
+  as the receipt "I can also ship them properly".
+- **x86_64 disassembly deferred indefinitely.** V1's disasm is RV32IMA
+  only (hand-decoded). `iced-x86` is no longer in the V2 roadmap; if x86
+  lands, it ships through a smaller hand-written decoder so the artifact
+  stays portfolio-pointable.
+- **Synthetic bus, not `.sal` files.** V1's Trace ingests the emulator's
+  own MMIO log instead of Saleae `.sal` captures. `.sal` ingest is
+  deferred (now a stretch goal in §0 → "later").
+- **Aesthetic update.** Spec §3 said "out of scope: dark mode (v1)". Dark
+  mode is now shipped across landing, v1, v2, and the scope doc, tokenized
+  through CSS custom properties.
+
+### Next (in priority order)
+
+1. **V2: Disasm + Emu.** Port the hand-decoded RV32IMA tables from V1's
+   `js/disasm/rv32.js` into a Rust module inside `scry-core` and expose
+   `disasm_rv32(bytes, base, range)`. Then port the V1 interpreter to Rust
+   for V2's Emu pane. The V1 implementations stay; V2 reuses the same
+   semantics, written in Rust.
+2. **V2: Trace.** Hook the V2 emulator's MMIO writes to a Rust-side bus
+   event stream; render the same SPI/I2C panes V1 has, but reading from
+   `emu_drain_bus_events()` instead of a JS store.
+3. **PE + Mach-O sniffing.** `detect_format` already covers them. Add
+   minimal headers-only inspect panes so V2 has something to show when a
+   non-ELF lands. Full parsing deferred.
+4. **`.sal` ingest.** `fflate` + a small decoder. Lives in V2 only; V1
+   keeps its synthetic-only ingest.
+5. **CSP tightening.** The current page CSP is permissive (`unsafe-inline`,
+   `https:` in `connect-src`, `img-src`). Audit each one against actual
+   need; remove anything we don't use.
+
+### Later (acknowledged, not scheduled)
+
+- Compressed (C) and floating-point (F/D) RV32 extensions.
+- Saleae CSV / `.sr` (sigrok) ingest.
+- UART, CAN, 1-Wire decoders.
+- Kaitai-style schema language for user-defined hex overlays.
+- Decompilation, CFG view, xref panel.
 
 ---
 
