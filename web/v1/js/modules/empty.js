@@ -1,5 +1,6 @@
 import { loadFile } from '../stores/file.js';
 import { el } from '../dom.js';
+import { buildDemoElf, DEMO_NAME } from '../demo/rv32_demo.js';
 
 async function readFile(file) {
   const buf = await file.arrayBuffer();
@@ -9,10 +10,12 @@ async function readFile(file) {
 export function createEmpty() {
   const input = el('input', { type: 'file', hidden: 'hidden' });
   const pick = el('button', { class: 'pick', type: 'button', text: 'Choose file' });
+  const demo = el('button', { class: 'pick demo', type: 'button', text: 'Load RV32 demo' });
   const zone = el('div', { class: 'zone' }, [
     el('h2', { text: 'Drop a binary to begin.' }),
-    el('p', { class: 'subtitle', text: 'ELF · Saleae .sal · raw bytes' }),
+    el('p', { class: 'subtitle', text: 'ELF \u00B7 Saleae .sal \u00B7 raw bytes' }),
     pick,
+    demo,
     input
   ]);
   const host = el('section', { class: 's-empty' }, [zone]);
@@ -32,6 +35,9 @@ export function createEmpty() {
   });
 
   pick.addEventListener('click', () => input.click());
+  demo.addEventListener('click', () => {
+    loadFile(DEMO_NAME, buildDemoElf());
+  });
   input.addEventListener('change', async (e) => {
     const file = e.target.files?.[0];
     if (file) await readFile(file);
