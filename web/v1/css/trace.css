@@ -1,0 +1,98 @@
+.t-wrap {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  height: 100%;
+  padding: 0 22px 22px;
+  min-height: 0;
+}
+
+.t-bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 0 12px;
+  border-bottom: 1px solid var(--grey);
+}
+.t-title {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.t-meta {
+  font-size: 10px;
+  color: var(--mint-deep);
+  letter-spacing: 0.08em;
+}
+
+.t-note {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  padding: 8px 0 4px;
+  margin: 0;
+  font-style: italic;
+}
+
+.t-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 22px;
+  min-height: 0;
+  padding-top: 12px;
+  overflow: hidden;
+}
+
+.t-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.t-pane-h {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: var(--mint-deep);
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.t-list {
+  overflow-y: auto;
+  min-height: 0;
+  border: 1px solid var(--grey);
+  background: var(--paper);
+  padding: 6px;
+}
+.t-empty {
+  font-size: 10px;
+  color: var(--muted);
+  font-style: italic;
+  padding: 8px 4px;
+}
+
+.t-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 10px;
+  line-height: 16px;
+  padding: 2px 4px;
+  white-space: nowrap;
+  border-bottom: 1px dotted transparent;
+}
+.t-row:hover { background: var(--mint-pale); }
+
+.t-row .t-idx   { color: var(--muted); }
+.t-row .t-cyc   { color: var(--muted); letter-spacing: 0.02em; }
+.t-row .t-dir   { color: var(--mint-deep); font-weight: 500; }
+.t-row .t-dir.w { color: var(--mint-deep); }
+.t-row .t-dir.r { color: var(--ink); }
+.t-row .t-addr  { color: var(--ink); }
+.t-row .t-data  { color: var(--ink); letter-spacing: 0.04em; }
+.t-row .t-data.muted { color: var(--muted); }
+.t-row .t-width { color: var(--muted); margin-left: auto; }
+.t-row.raw .t-data { font-size: 10px; }
+.muted { color: var(--muted); }

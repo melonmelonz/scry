@@ -7,6 +7,7 @@ import { createHex } from './modules/hex.js';
 import { createInspect } from './modules/inspect.js';
 import { createDisasm } from './modules/disasm.js';
 import { createEmu } from './modules/emu.js';
+import { createTrace } from './modules/trace.js';
 import { fileStore } from './stores/file.js';
 import { router } from './stores/router.js';
 import { detectFormat } from './format/detect.js';
@@ -42,7 +43,8 @@ function mount() {
     hex:     createHex,
     inspect: createInspect,
     disasm:  createDisasm,
-    emu:     createEmu
+    emu:     createEmu,
+    trace:   createTrace
   };
   const mounted = {};
 

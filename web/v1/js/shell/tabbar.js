@@ -17,7 +17,7 @@ const TABS = [
   { id: 'hex',     label: 'HEX',     enabled: () => hasFile() },
   { id: 'disasm',  label: 'DISASM',  enabled: () => hasFile() },
   { id: 'emu',     label: 'EMU',     enabled: () => hasFile() },
-  { id: 'trace',   label: 'TRACE',   enabled: () => false }
+  { id: 'trace',   label: 'TRACE',   enabled: () => hasFile() }
 ];
 
 export function createTabBar() {
