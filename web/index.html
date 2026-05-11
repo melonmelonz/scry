@@ -20,6 +20,33 @@
   --mint-deep: #5E957A;
   --mint-pale: #E2EEE7;
   --mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, monospace;
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --bg:        #14171A;
+  --paper:     #1B1F23;
+  --grey:      #2A2F33;
+  --rule:      #3B4146;
+  --ink:       #E8E7E1;
+  --muted:     #8A8E87;
+  --mint:      #6B9F84;
+  --mint-deep: #8FC2A8;
+  --mint-pale: #1F2E27;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:        #14171A;
+    --paper:     #1B1F23;
+    --grey:      #2A2F33;
+    --rule:      #3B4146;
+    --ink:       #E8E7E1;
+    --muted:     #8A8E87;
+    --mint:      #6B9F84;
+    --mint-deep: #8FC2A8;
+    --mint-pale: #1F2E27;
+    color-scheme: dark;
+  }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { min-height: 100%; }
@@ -207,13 +234,45 @@ footer {
   text-transform: uppercase;
   color: var(--muted);
 }
+.theme-toggle {
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--mint-deep);
+  background: transparent;
+  border: 1px solid var(--rule);
+  width: 28px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+  padding: 0;
+}
+.theme-toggle:hover {
+  color: var(--ink);
+  border-color: var(--mint-deep);
+  background: var(--mint-pale);
+}
 </style>
+<script>
+  try {
+    var t = localStorage.getItem('scry-theme');
+    if (t === 'light' || t === 'dark') {
+      document.documentElement.setAttribute('data-theme', t);
+    }
+  } catch (e) {}
+</script>
 </head>
 <body>
 <div class="frame">
   <header>
     <span class="brand">scry</span>
-    <span class="meta">workbench · v0.1</span>
+    <span style="display:inline-flex;align-items:center;gap:16px;">
+      <span class="meta">workbench · v0.1</span>
+      <button class="theme-toggle" type="button" aria-label="Toggle dark mode" id="theme-toggle">&#x263E;</button>
+    </span>
   </header>
 
   <p class="pitch">Scry takes a binary and shows you what it would do, without leaving your browser tab.</p>
@@ -230,14 +289,14 @@ footer {
       <div class="cta">Launch v1 →</div>
     </a>
 
-    <a class="card disabled" href="#">
-      <span class="tag muted">[ V2 · FULL ]</span>
+    <a class="card" href="v2/">
+      <span class="tag">[ V2 · FULL ]</span>
       <h2>Full-blown Rust → WASM</h2>
-      <p>The ambitious build: Rust core via wasm-bindgen, Svelte 5 shell, Vite, full x86_64 + RV32 disassembly, .sal capture parsing.</p>
+      <p>The ambitious build: Rust core via wasm-bindgen, Svelte 5 shell, Vite. ELF inspect + hex live today; disassembly &amp; .sal capture parsing land next.</p>
       <div class="stack">RUNTIME<span class="v">SVELTE 5 · VITE</span></div>
       <div class="stack">PARSING<span class="v">GOBLIN (RUST)</span></div>
-      <div class="stack">DISASM<span class="v">ICED-X86 + RV32</span></div>
-      <div class="cta">Coming soon</div>
+      <div class="stack">DISASM<span class="v">RV32 (PLANNED)</span></div>
+      <div class="cta">Launch v2 →</div>
     </a>
   </div>
 
@@ -264,5 +323,31 @@ footer {
     <span>2026</span>
   </footer>
 </div>
+<script>
+  (function () {
+    var btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    function current() {
+      var a = document.documentElement.getAttribute('data-theme');
+      if (a === 'light' || a === 'dark') return a;
+      return mq.matches ? 'dark' : 'light';
+    }
+    function render() {
+      btn.textContent = current() === 'dark' ? '\u263C' : '\u263E';
+      btn.title = current() === 'dark' ? 'Switch to light' : 'Switch to dark';
+    }
+    btn.addEventListener('click', function () {
+      var next = current() === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('scry-theme', next); } catch (e) {}
+      render();
+    });
+    mq.addEventListener('change', function () {
+      if (!document.documentElement.hasAttribute('data-theme')) render();
+    });
+    render();
+  })();
+</script>
 </body>
 </html>

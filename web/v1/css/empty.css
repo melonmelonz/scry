@@ -10,7 +10,7 @@
   border-radius: var(--r-3);
   padding: 80px 64px;
   text-align: center;
-  background: rgba(166, 201, 181, 0.04);
+  background: var(--tint-row);
   max-width: 640px;
   transition: border-color var(--t-base), background var(--t-base);
 }

@@ -8,6 +8,8 @@ import {
   hex, num
 } from '../elf/parse.js';
 import { el, replaceChildren } from '../dom.js';
+import { gotoIn } from '../stores/nav.js';
+import { router } from '../stores/router.js';
 
 const TABS = ['sections', 'segments', 'symbols'];
 
@@ -24,15 +26,19 @@ function tableHeader(cols) {
   ));
 }
 
-function tableRow(cols, datum, idx) {
-  return el('div', {
-    class: 'i-row',
-    dataset: { idx: String(idx) }
+function tableRow(cols, datum, idx, opts = {}) {
+  const cls = `i-row${opts.clickable ? ' clickable' : ''}`;
+  const node = el('div', {
+    class: cls,
+    dataset: { idx: String(idx) },
+    title: opts.title || ''
   }, cols.map(c => {
     const v = c.get(datum);
     const cellClass = `c c-${c.key}${c.mono ? ' mono' : ''}${c.muted ? ' muted' : ''}`;
     return el('span', { class: cellClass, text: v });
   }));
+  if (opts.onclick) node.addEventListener('click', opts.onclick);
+  return node;
 }
 
 function renderSummary(elf) {
@@ -105,10 +111,22 @@ function renderSymbols(elf) {
     { key: 'value',  label: 'VALUE', get: s => hex(s.st_value, elf.is64 ? 16 : 8), mono: true },
     { key: 'size',   label: 'SIZE',  get: s => num(s.st_size), mono: true }
   ];
-  const rows = filtered.slice(0, 2000).map((s, i) => tableRow(
-    cols.map(c => ({ ...c, get: c.key === 'idx' ? (() => String(i).padStart(4, '0')) : c.get })),
-    s, i
-  ));
+  const rows = filtered.slice(0, 2000).map((s, i) => {
+    const addr = Number(s.st_value) >>> 0;
+    const jumpable = addr !== 0 && (s.type === 2 || s.type === 0); // FUNC or NOTYPE w/ addr
+    return tableRow(
+      cols.map(c => ({ ...c, get: c.key === 'idx' ? (() => String(i).padStart(4, '0')) : c.get })),
+      s, i,
+      jumpable ? {
+        clickable: true,
+        title: `Jump to ${'0x' + addr.toString(16).toUpperCase()} in DISASM`,
+        onclick: () => {
+          router.go('disasm');
+          gotoIn('disasm', addr);
+        }
+      } : {}
+    );
+  });
   const truncated = filtered.length > 2000
     ? [el('div', { class: 'i-note', text: `(showing 2000 of ${filtered.length}; symbol table truncated for display)` })]
     : [];

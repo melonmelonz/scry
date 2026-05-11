@@ -2,10 +2,19 @@ import { loadFile, ingestFile, setLoading, fileStore } from '../stores/file.js';
 import { el } from '../dom.js';
 import { buildDemoElf, DEMO_NAME } from '../demo/rv32_demo.js';
 
+// Only allow .elf samples with a strict character set. The manifest is
+// produced by us at build time, but defense in depth: if someone tampered
+// with the served file, we still refuse to follow `../etc/passwd` style names.
+const SAMPLE_NAME_OK = /^[A-Za-z0-9._-]+\.elf$/;
+
 async function loadSample(file) {
+  if (!SAMPLE_NAME_OK.test(file)) {
+    fileStore.set({ name: null, bytes: null, loading: false, status: `sample blocked: bad name "${file}"` });
+    throw new Error(`bad sample name: ${file}`);
+  }
   setLoading(`fetching ${file}\u2026`);
   await new Promise(r => requestAnimationFrame(() => r()));
-  const res = await fetch(`samples/${file}`);
+  const res = await fetch(`samples/${encodeURIComponent(file)}`);
   if (!res.ok) {
     fileStore.set({ name: null, bytes: null, loading: false, status: `fetch failed: ${res.status}` });
     throw new Error(`sample fetch failed: ${res.status}`);

@@ -1,5 +1,5 @@
 :root {
-  /* palette */
+  /* palette — light (default) */
   --bg:        #F2F1EC;
   --paper:     #FAF8F2;
   --grey:      #DEDDD7;
@@ -9,6 +9,16 @@
   --mint:      #A6C9B5;
   --mint-deep: #5E957A;
   --mint-pale: #E2EEE7;
+
+  /* tinted surfaces (rails, hovers) */
+  --tint-rail:    rgba(166, 201, 181, 0.05);
+  --tint-row:     rgba(166, 201, 181, 0.04);
+  --tint-drop:    rgba(94, 149, 122, 0.18);
+
+  /* semantic accents (used by disasm + flashes) */
+  --accent-store:  #7A6E3A;
+  --accent-system: #7A4A4A;
+  --flash-bg:      #7A4A4A;
 
   /* type */
   --mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, monospace;
@@ -50,4 +60,58 @@
   /* motion */
   --t-fast: 120ms ease;
   --t-base: 200ms ease;
+
+  color-scheme: light;
+}
+
+/* Dark palette — applied when user (or system) prefers dark. The token names
+   are stable; only the values shift, so every consumer keeps working. */
+[data-theme="dark"] {
+  --bg:        #14171A;
+  --paper:     #1B1F23;
+  --grey:      #2A2F33;
+  --rule:      #3B4146;
+  --ink:       #E8E7E1;
+  --muted:     #8A8E87;
+  --mint:      #6B9F84;
+  --mint-deep: #8FC2A8;
+  --mint-pale: #1F2E27;
+
+  --tint-rail:    rgba(143, 194, 168, 0.06);
+  --tint-row:     rgba(143, 194, 168, 0.05);
+  --tint-drop:    rgba(143, 194, 168, 0.18);
+
+  --accent-store:  #C8B870;
+  --accent-system: #D08585;
+  --flash-bg:      #6B2F2F;
+
+  --r-strong: 1px solid var(--ink);
+
+  color-scheme: dark;
+}
+
+/* Respect OS preference when no explicit choice has been stored. The toggle
+   sets data-theme on <html> which overrides this media query. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:        #14171A;
+    --paper:     #1B1F23;
+    --grey:      #2A2F33;
+    --rule:      #3B4146;
+    --ink:       #E8E7E1;
+    --muted:     #8A8E87;
+    --mint:      #6B9F84;
+    --mint-deep: #8FC2A8;
+    --mint-pale: #1F2E27;
+
+    --tint-rail:    rgba(143, 194, 168, 0.06);
+    --tint-row:     rgba(143, 194, 168, 0.05);
+    --tint-drop:    rgba(143, 194, 168, 0.18);
+
+    --accent-store:  #C8B870;
+    --accent-system: #D08585;
+    --flash-bg:      #6B2F2F;
+
+    color-scheme: dark;
+  }
 }

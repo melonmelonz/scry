@@ -6,6 +6,7 @@ import { ABI } from '../emu/cpu.js';
 import { decode } from '../disasm/rv32.js';
 import { el, replaceChildren } from '../dom.js';
 import { busLog } from '../stores/bus.js';
+import { setHint, clearHint } from '../stores/hint.js';
 
 function hex(n, w = 8) {
   return '0x' + ((n >>> 0).toString(16).toUpperCase()).padStart(w, '0');
@@ -49,10 +50,21 @@ export function createEmu() {
     btnRun.classList.toggle('on', on);
   }
 
+  function stateClassFor(c) {
+    if (!c) return 'idle';
+    if (!c.halted) return runHandle ? 'running' : 'ready';
+    // Reason strings come from cpu.js: 'ecall', 'ebreak', exceptions.
+    const r = (c.haltReason || '').toLowerCase();
+    if (r.includes('ecall') || r.includes('ebreak')) return 'halted';
+    if (r) return 'fault';
+    return 'halted';
+  }
+
   function renderRegs() {
     if (!cpu) {
       replaceChildren(regsPanel, []);
-      stateLine.textContent = '';
+      replaceChildren(stateLine, []);
+      stateLine.className = 'e-state';
       nextInstr.textContent = '';
       return;
     }
@@ -68,8 +80,25 @@ export function createEmu() {
     }
     replaceChildren(regsPanel, rows);
 
-    const pcText = `PC ${hex(cpu.pc)}  ·  CYC ${cpu.cycles.toLocaleString()}  ·  ${cpu.halted ? 'HALT' : 'READY'}${cpu.halted && cpu.haltReason ? ' — ' + cpu.haltReason : ''}`;
-    stateLine.textContent = pcText;
+    const kind = stateClassFor(cpu);
+    stateLine.className = `e-state e-state-${kind}`;
+    const badgeText = kind === 'running' ? 'RUNNING'
+                    : kind === 'ready'   ? 'READY'
+                    : kind === 'halted'  ? 'HALTED'
+                    : kind === 'fault'   ? 'FAULT'
+                    : 'IDLE';
+    const pieces = [
+      el('span', { class: 'e-state-badge', text: badgeText }),
+      el('span', { class: 'e-state-sep', text: ' \u00B7 ' }),
+      el('span', { text: `PC ${hex(cpu.pc)}` }),
+      el('span', { class: 'e-state-sep', text: ' \u00B7 ' }),
+      el('span', { text: `CYC ${cpu.cycles.toLocaleString()}` }),
+    ];
+    if (cpu.halted && cpu.haltReason) {
+      pieces.push(el('span', { class: 'e-state-sep', text: ' \u00B7 ' }));
+      pieces.push(el('span', { class: 'e-state-reason', text: cpu.haltReason }));
+    }
+    replaceChildren(stateLine, pieces);
 
     // Disassemble the upcoming instruction.
     try {
@@ -79,6 +108,9 @@ export function createEmu() {
     } catch (e) {
       nextInstr.textContent = `${hex(cpu.pc)}    (bad fetch)`;
     }
+
+    // Push to status bar so the user always knows where the CPU is.
+    setHint('emu', `${badgeText} \u00B7 PC ${hex(cpu.pc)} \u00B7 CYC ${cpu.cycles.toLocaleString()}${cpu.halted && cpu.haltReason ? ' \u00B7 ' + cpu.haltReason : ''}`);
   }
 
   function renderMemPeek() {

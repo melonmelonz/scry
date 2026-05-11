@@ -1,0 +1,10 @@
+[workspace]
+members = ["rust/scry-core"]
+resolver = "2"
+
+[profile.release]
+# Smaller wasm output. lto + opt-level "z" trades compile time for size.
+lto = true
+opt-level = "z"
+codegen-units = 1
+strip = true

@@ -1,7 +1,9 @@
-import { el } from '../dom.js';
+import { el, replaceChildren } from '../dom.js';
 import { busLog } from '../stores/bus.js';
 import { createSpiDecoder, SPI_BASE } from '../trace/spi.js';
 import { createI2cDecoder, I2C_BASE } from '../trace/i2c.js';
+import { setHint, clearHint } from '../stores/hint.js';
+import { router } from '../stores/router.js';
 
 // Trace module — reads the shared bus event log (filled by the emulator's
 // MMIO writes) and decodes it as SPI / I²C transactions. No external file
@@ -40,18 +42,65 @@ export function createTrace() {
   const i2cList = el('div', { class: 't-list' });
   const rawList = el('div', { class: 't-list' });
 
+  const spiCount = el('span', { class: 't-pane-count', text: '0' });
+  const i2cCount = el('span', { class: 't-pane-count', text: '0' });
+  const rawCount = el('span', { class: 't-pane-count', text: '0' });
+
+  // Inline detail panel — fills in when you click a transaction.
+  const detail = el('div', { class: 't-detail' }, [
+    el('p', { class: 't-detail-empty', text: 'Click a transaction for details.' })
+  ]);
+
   body.appendChild(el('section', { class: 't-pane' }, [
-    el('h2', { class: 't-pane-h', text: 'SPI' }),
+    el('h2', { class: 't-pane-h' }, [el('span', { text: 'SPI' }), spiCount]),
     spiList
   ]));
   body.appendChild(el('section', { class: 't-pane' }, [
-    el('h2', { class: 't-pane-h', text: 'I\u00B2C' }),
+    el('h2', { class: 't-pane-h' }, [el('span', { text: 'I\u00B2C' }), i2cCount]),
     i2cList
   ]));
   body.appendChild(el('section', { class: 't-pane' }, [
-    el('h2', { class: 't-pane-h', text: 'RAW MMIO' }),
+    el('h2', { class: 't-pane-h' }, [el('span', { text: 'RAW MMIO' }), rawCount]),
     rawList
   ]));
+
+  root.appendChild(detail);
+
+  function fmtBytesGrid(bytes) {
+    if (!bytes.length) return '(empty)';
+    return bytes.map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+  }
+
+  function showSpiDetail(t, i) {
+    replaceChildren(detail, [
+      el('p', { class: 't-detail-h', text: `SPI #${i} \u00B7 c${t.start_cycle} \u2192 c${t.end_cycle}` }),
+      el('div', { class: 't-detail-row' }, [
+        el('span', { class: 't-detail-l', text: 'MOSI' }),
+        el('span', { class: 't-detail-v', text: fmtBytesGrid(t.mosi) })
+      ]),
+      el('div', { class: 't-detail-row' }, [
+        el('span', { class: 't-detail-l', text: 'MISO' }),
+        el('span', { class: 't-detail-v', text: fmtBytesGrid(t.miso) })
+      ])
+    ]);
+  }
+
+  function showI2cDetail(t, i) {
+    const addrText = t.address !== null
+      ? `0x${t.address.toString(16).padStart(2, '0')}${t.direction === 'r' ? ' R' : t.direction === 'w' ? ' W' : ''}${t.restart ? ' (restart)' : ''}`
+      : 'unaddressed';
+    replaceChildren(detail, [
+      el('p', { class: 't-detail-h', text: `I\u00B2C #${i} \u00B7 c${t.start_cycle} \u2192 c${t.end_cycle}` }),
+      el('div', { class: 't-detail-row' }, [
+        el('span', { class: 't-detail-l', text: 'ADDR' }),
+        el('span', { class: 't-detail-v', text: addrText })
+      ]),
+      el('div', { class: 't-detail-row' }, [
+        el('span', { class: 't-detail-l', text: 'BYTES' }),
+        el('span', { class: 't-detail-v', text: fmtBytesGrid(t.bytes) })
+      ])
+    ]);
+  }
 
   function renderSpi(txns) {
     spiList.replaceChildren();
@@ -61,7 +110,7 @@ export function createTrace() {
     }
     for (let i = 0; i < txns.length; i++) {
       const t = txns[i];
-      const row = el('div', { class: 't-row' }, [
+      const row = el('div', { class: 't-row clickable' }, [
         el('span', { class: 't-idx', text: String(i).padStart(3, '0') }),
         el('span', { class: 't-cyc', text: `c${t.start_cycle}\u2192c${t.end_cycle}` }),
         el('span', { class: 't-dir', text: 'MOSI' }),
@@ -69,6 +118,7 @@ export function createTrace() {
         el('span', { class: 't-dir', text: 'MISO' }),
         el('span', { class: 't-data muted', text: fmtBytes(t.miso) })
       ]);
+      row.addEventListener('click', () => showSpiDetail(t, i));
       spiList.appendChild(row);
     }
   }
@@ -85,13 +135,14 @@ export function createTrace() {
         ? '0x' + t.address.toString(16).padStart(2, '0')
         : '??';
       const dir = t.direction === 'r' ? 'READ ' : t.direction === 'w' ? 'WRITE' : '---  ';
-      const row = el('div', { class: 't-row' }, [
+      const row = el('div', { class: 't-row clickable' }, [
         el('span', { class: 't-idx', text: String(i).padStart(3, '0') }),
         el('span', { class: 't-cyc', text: `c${t.start_cycle}\u2192c${t.end_cycle}` }),
         el('span', { class: 't-dir', text: dir + (t.restart ? ' (Sr)' : '') }),
         el('span', { class: 't-addr', text: addr }),
         el('span', { class: 't-data', text: fmtBytes(t.bytes) })
       ]);
+      row.addEventListener('click', () => showI2cDetail(t, i));
       i2cList.appendChild(row);
     }
   }
@@ -128,12 +179,17 @@ export function createTrace() {
     }
     metaEl.textContent =
       `${events.length} events / ${spi.transactions.length} SPI / ${i2c.transactions.length} I\u00B2C`;
+    spiCount.textContent = String(spi.transactions.length);
+    i2cCount.textContent = String(i2c.transactions.length);
+    rawCount.textContent = String(events.length);
     renderSpi(spi.transactions);
     renderI2c(i2c.transactions);
     renderRaw(events);
+    setHint('trace', `${events.length} MMIO \u00B7 ${spi.transactions.length} SPI \u00B7 ${i2c.transactions.length} I\u00B2C`);
   }
 
   busLog.subscribe(refresh);
+  router.subscribe((r) => { if (r !== 'trace') clearHint('trace'); });
   refresh();
 
   return root;

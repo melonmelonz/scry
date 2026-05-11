@@ -31,6 +31,33 @@
   letter-spacing: 0.12em;
 }
 .s-meta .v { color: var(--ink); margin-left: var(--sp-1); }
+.s-right {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-4);
+}
+.s-theme {
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--mint-deep);
+  background: transparent;
+  border: 1px solid var(--rule);
+  width: 26px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
+  padding: 0;
+  align-self: center;
+}
+.s-theme:hover {
+  color: var(--ink);
+  border-color: var(--mint-deep);
+  background: var(--mint-pale);
+}
 
 /* ─── Tab bar ──────────────────────────────── */
 .s-tabs { display: flex; border-bottom: var(--r-thin); }
@@ -66,7 +93,7 @@
 .s-rail {
   border-right: var(--r-thin);
   padding: 18px 16px;
-  background: rgba(166, 201, 181, 0.05);
+  background: var(--tint-rail);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -109,12 +136,18 @@
   margin-right: 6px;
   vertical-align: 1px;
 }
+.s-status .hint {
+  color: var(--ink);
+  letter-spacing: 0.06em;
+}
+.s-status .sep { color: var(--rule); }
+.s-status-right { display: inline-flex; gap: 4px; }
 
 /* ─── Global drag-drop overlay ────────────────── */
 .global-drop {
   position: fixed;
   inset: 0;
-  background: rgba(94, 149, 122, 0.18);
+  background: var(--tint-drop);
   border: 3px dashed var(--mint-deep);
   z-index: 200;
   pointer-events: none;
@@ -166,7 +199,7 @@
   vertical-align: -1px;
   animation: scry-spin 0.8s linear infinite;
 }
-.global-loading.flash { background: #7A4A4A; }
+.global-loading.flash { background: var(--flash-bg); }
 
 @keyframes scry-spin { to { transform: rotate(360deg); } }
 

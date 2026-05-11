@@ -1,5 +1,6 @@
 import { fileStore } from '../stores/file.js';
 import { el, replaceChildren } from '../dom.js';
+import { createThemeToggle } from './theme.js';
 
 function sizeFmt(n) {
   if (n < 1024) return `${n} B`;
@@ -10,6 +11,9 @@ function sizeFmt(n) {
 export function createHeader() {
   const host = document.createElement('header');
   host.className = 's-header';
+  // Toggle lives outside the file-store re-render so its click listener
+  // isn't torn down whenever a new file is loaded.
+  const themeBtn = createThemeToggle();
 
   function render(state) {
     const has = state.bytes !== null;
@@ -23,10 +27,11 @@ export function createHeader() {
       ]);
     } else {
       meta = el('span', { class: 's-meta' }, [
-        el('span', { text: 'WORKBENCH · v0.1' })
+        el('span', { text: 'WORKBENCH \u00B7 v0.1' })
       ]);
     }
-    replaceChildren(host, [brand, meta]);
+    const right = el('span', { class: 's-right' }, [meta, themeBtn]);
+    replaceChildren(host, [brand, right]);
   }
 
   fileStore.subscribe(render);

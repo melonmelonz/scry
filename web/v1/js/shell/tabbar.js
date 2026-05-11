@@ -11,13 +11,35 @@ function isELF() {
   return b !== null && detectFormat(b) === 'elf';
 }
 
-// Phase 1 (v1) — each tab decides its own availability via the `enabled` fn.
+// Phase 1 (v1) — each tab decides its own availability via `enabled` and
+// explains its disabled state via `disabledReason` so the user sees a
+// tooltip explaining why it's greyed out.
 const TABS = [
-  { id: 'inspect', label: 'INSPECT', enabled: () => isELF() },
-  { id: 'hex',     label: 'HEX',     enabled: () => hasFile() },
-  { id: 'disasm',  label: 'DISASM',  enabled: () => hasFile() },
-  { id: 'emu',     label: 'EMU',     enabled: () => hasFile() },
-  { id: 'trace',   label: 'TRACE',   enabled: () => hasFile() }
+  {
+    id: 'inspect', label: 'INSPECT',
+    enabled: () => isELF(),
+    disabledReason: () => hasFile() ? 'INSPECT is ELF-only' : 'Load a file first',
+  },
+  {
+    id: 'hex', label: 'HEX',
+    enabled: () => hasFile(),
+    disabledReason: () => 'Load a file first',
+  },
+  {
+    id: 'disasm', label: 'DISASM',
+    enabled: () => hasFile(),
+    disabledReason: () => 'Load a file first',
+  },
+  {
+    id: 'emu', label: 'EMU',
+    enabled: () => hasFile(),
+    disabledReason: () => 'Load a file first',
+  },
+  {
+    id: 'trace', label: 'TRACE',
+    enabled: () => hasFile(),
+    disabledReason: () => 'Load a file first',
+  },
 ];
 
 export function createTabBar() {
@@ -37,8 +59,10 @@ export function createTabBar() {
     const route = router.route;
     for (const t of TABS) {
       const btn = buttons.get(t.id);
+      const ok = t.enabled();
       btn.classList.toggle('on', route === t.id);
-      btn.disabled = !t.enabled();
+      btn.disabled = !ok;
+      btn.title = ok ? '' : t.disabledReason();
     }
   }
 

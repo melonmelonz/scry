@@ -66,6 +66,14 @@
 .hex-row .ascii .ovr { background: var(--mint-pale); padding: 1px 1px; color: var(--ink); }
 .hex-row .ascii .ovr.hot { background: var(--mint); }
 .hex-row .mid { display: inline-block; width: 8px; }
+.hex-row .bytes [data-fi] { cursor: pointer; }
+.hex-row .ascii [data-fi] { cursor: pointer; }
+.hex-row .bytes [data-fi].sel,
+.hex-row .ascii [data-fi].sel {
+  background: var(--mint-deep);
+  color: var(--paper);
+  padding: 1px 1px;
+}
 
 /* Overlay tip */
 .tip {

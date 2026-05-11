@@ -3,6 +3,7 @@ import { detectFormat } from '../format/detect.js';
 import { visibleRange } from '../hex/virtualize.js';
 import { pickOverlay, findOverlayAt, decodeField, formatDecoded } from '../hex/overlays.js';
 import { el, replaceChildren } from '../dom.js';
+import { setHint, clearHint } from '../stores/hint.js';
 
 const ROW_HEIGHT = 20;
 const BYTES_PER_ROW = 16;
@@ -91,6 +92,7 @@ export function createHex() {
   let viewportHeight = 400;
   let rowPool = [];
   let hoveredField = null;
+  let selectedOffset = -1;
 
   function bytes() {
     return fileStore.get().bytes ?? new Uint8Array(0);
@@ -150,14 +152,31 @@ export function createHex() {
     const all = scroll.querySelectorAll('.ovr');
     if (!hoveredField) {
       all.forEach(n => n.classList.remove('hot'));
+    } else {
+      const start = hoveredField.offset;
+      const end = hoveredField.offset + hoveredField.size;
+      all.forEach(n => {
+        const fi = Number(n.dataset.fi);
+        n.classList.toggle('hot', fi >= start && fi < end);
+      });
+    }
+    // Selection paint runs over every visible cell, not just .ovr.
+    const cells = scroll.querySelectorAll('[data-fi]');
+    cells.forEach(n => {
+      n.classList.toggle('sel', Number(n.dataset.fi) === selectedOffset);
+    });
+  }
+
+  function pushSelectionHint() {
+    const b = bytes();
+    if (selectedOffset < 0 || selectedOffset >= b.byteLength) {
+      clearHint('hex');
       return;
     }
-    const start = hoveredField.offset;
-    const end = hoveredField.offset + hoveredField.size;
-    all.forEach(n => {
-      const fi = Number(n.dataset.fi);
-      n.classList.toggle('hot', fi >= start && fi < end);
-    });
+    const v = b[selectedOffset];
+    const ascii = (v >= 0x20 && v <= 0x7E) ? String.fromCharCode(v) : '.';
+    const bin = v.toString(2).padStart(8, '0');
+    setHint('hex', `OFF ${hex8(selectedOffset)} \u00B7 BYTE 0x${hex2(v)} (${v}) \u00B7 b${bin} \u00B7 '${ascii}'`);
   }
 
   function renderTip() {
@@ -186,6 +205,15 @@ export function createHex() {
     renderTip();
   });
 
+  // Click-to-select a byte. Pushes details to the status bar.
+  scroll.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-fi]');
+    if (!t) return;
+    selectedOffset = Number(t.dataset.fi);
+    paintHotCells();
+    pushSelectionHint();
+  });
+
   scroll.addEventListener('scroll', () => {
     scrollTop = scroll.scrollTop;
     render();
@@ -211,6 +239,8 @@ export function createHex() {
     scroll.scrollTop = 0;
     scrollTop = 0;
     hoveredField = null;
+    selectedOffset = -1;
+    clearHint('hex');
     render();
     renderTip();
   });

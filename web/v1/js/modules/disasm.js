@@ -4,6 +4,9 @@ import { parseElf } from '../elf/parse.js';
 import { disassembleRange } from '../disasm/rv32.js';
 import { visibleRange } from '../hex/virtualize.js';
 import { el, replaceChildren } from '../dom.js';
+import { navStore } from '../stores/nav.js';
+import { setHint, clearHint } from '../stores/hint.js';
+import { router } from '../stores/router.js';
 
 const ROW_HEIGHT = 22;
 const OVERSCAN = 6;
@@ -59,7 +62,12 @@ export function createDisasm() {
   const warn = el('p', { class: 'd-warn' });
   const archEl = el('span', { class: 'd-arch', text: 'RV32IMA' });
   const sectionLabel = el('span', { class: 'd-sect' });
-  const bar = el('header', { class: 'd-bar' }, [titleEl, archEl, sectionLabel]);
+  const gotoInput = el('input', { type: 'text', placeholder: '0x00010000', spellcheck: 'false', autocomplete: 'off' });
+  const gotoForm = el('form', { class: 'd-goto' }, [
+    el('label', { class: 'd-goto-l', text: 'GOTO' }),
+    gotoInput
+  ]);
+  const bar = el('header', { class: 'd-bar' }, [titleEl, archEl, sectionLabel, gotoForm]);
 
   const scroll = el('div', { class: 'd-scroll' });
   const topSpacer = document.createElement('div');
@@ -183,9 +191,30 @@ export function createDisasm() {
     }
   }
 
+  function scrollToAddress(addr) {
+    if (totalInstrs === 0) return false;
+    const idx = Math.floor((addr - baseAddr) / 4);
+    if (idx < 0 || idx >= totalInstrs) {
+      setHint('disasm', `address ${hex(addr)} outside ${hex(baseAddr)} \u2026 ${hex(baseAddr + totalInstrs * 4)}`);
+      return false;
+    }
+    scroll.scrollTop = idx * ROW_HEIGHT;
+    setHint('disasm', `at ${hex(addr)} \u00B7 instr ${idx.toLocaleString()} of ${totalInstrs.toLocaleString()}`);
+    return true;
+  }
+
   scroll.addEventListener('scroll', () => {
     scrollTop = scroll.scrollTop;
     render();
+  });
+
+  gotoForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const raw = gotoInput.value.trim();
+    if (!raw) return;
+    const n = parseInt(raw.replace(/^0x/i, ''), 16);
+    if (!Number.isFinite(n) || n < 0) return;
+    scrollToAddress(n >>> 0);
   });
 
   const ro = new ResizeObserver(() => {
@@ -193,6 +222,20 @@ export function createDisasm() {
     render();
   });
   ro.observe(scroll);
+
+  // Cross-module nav: if someone (inspect) asks us to jump to an address,
+  // honor it once we're the active route.
+  navStore.subscribe((req) => {
+    if (!req || req.route !== 'disasm') return;
+    // Try now; if disasm isn't current, it'll fire again when the router
+    // switches and we're mounted. (refreshFromFile will publish nav-related
+    // hint on its own.)
+    scrollToAddress(req.address);
+  });
+
+  router.subscribe((route) => {
+    if (route !== 'disasm') clearHint('disasm');
+  });
 
   fileStore.subscribe(refreshFromFile);
   refreshFromFile();

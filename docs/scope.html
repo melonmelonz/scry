@@ -21,6 +21,56 @@
     --mint-pale: #E2EEE7;
 
     --mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, monospace;
+    color-scheme: light;
+  }
+  [data-theme="dark"] {
+    --bg:        #14171A;
+    --paper:     #1B1F23;
+    --grey:      #2A2F33;
+    --rule:      #3B4146;
+    --ink:       #E8E7E1;
+    --muted:     #8A8E87;
+    --mint:      #6B9F84;
+    --mint-deep: #8FC2A8;
+    --mint-pale: #1F2E27;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #14171A;
+      --paper:     #1B1F23;
+      --grey:      #2A2F33;
+      --rule:      #3B4146;
+      --ink:       #E8E7E1;
+      --muted:     #8A8E87;
+      --mint:      #6B9F84;
+      --mint-deep: #8FC2A8;
+      --mint-pale: #1F2E27;
+      color-scheme: dark;
+    }
+  }
+  .theme-toggle {
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1;
+    color: var(--mint-deep);
+    background: transparent;
+    border: 1px solid var(--rule);
+    width: 28px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+    padding: 0;
+    margin-left: 12px;
+    vertical-align: middle;
+  }
+  .theme-toggle:hover {
+    color: var(--ink);
+    border-color: var(--mint-deep);
+    background: var(--mint-pale);
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
@@ -634,6 +684,14 @@
   }
   footer a:hover { text-decoration: underline; }
 </style>
+<script>
+  try {
+    var t = localStorage.getItem('scry-theme');
+    if (t === 'light' || t === 'dark') {
+      document.documentElement.setAttribute('data-theme', t);
+    }
+  } catch (e) {}
+</script>
 </head>
 <body>
 <main class="page">
@@ -641,7 +699,10 @@
   <!-- ─── HEAD ─── -->
   <header class="doc-head">
     <span class="brand">scry</span>
-    <span class="doc-meta">Scope Document · v0.1 · 2026-05-11</span>
+    <span>
+      <span class="doc-meta">Scope Document · v0.1 · 2026-05-11</span>
+      <button class="theme-toggle" type="button" aria-label="Toggle dark mode" id="theme-toggle">&#x263E;</button>
+    </span>
   </header>
 
   <!-- ─── HERO ─── -->
@@ -1312,5 +1373,31 @@
   </footer>
 
 </main>
+<script>
+  (function () {
+    var btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    function current() {
+      var a = document.documentElement.getAttribute('data-theme');
+      if (a === 'light' || a === 'dark') return a;
+      return mq.matches ? 'dark' : 'light';
+    }
+    function render() {
+      btn.textContent = current() === 'dark' ? '\u263C' : '\u263E';
+      btn.title = current() === 'dark' ? 'Switch to light' : 'Switch to dark';
+    }
+    btn.addEventListener('click', function () {
+      var next = current() === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('scry-theme', next); } catch (e) {}
+      render();
+    });
+    mq.addEventListener('change', function () {
+      if (!document.documentElement.hasAttribute('data-theme')) render();
+    });
+    render();
+  })();
+</script>
 </body>
 </html>

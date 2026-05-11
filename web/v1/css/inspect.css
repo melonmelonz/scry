@@ -110,6 +110,12 @@
 .i-row:not(.i-head):hover {
   background: var(--mint-pale);
 }
+.i-row.clickable { cursor: pointer; }
+.i-row.clickable:hover .c-name {
+  color: var(--mint-deep);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .i-row:not(.i-head):nth-child(even):not(:hover) {
-  background: rgba(166, 201, 181, 0.04);
+  background: var(--tint-row);
 }

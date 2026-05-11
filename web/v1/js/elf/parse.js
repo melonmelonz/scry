@@ -15,6 +15,12 @@ const ELFCLASS64 = 2;
 const ELFDATA2LSB = 1;
 const ELFDATA2MSB = 2;
 
+// Hard caps: a crafted ELF should never tie us up parsing 10M phantom
+// sections/symbols. These are well past any real-world binary.
+const MAX_SECTIONS = 65535;
+const MAX_SEGMENTS = 65535;
+const MAX_SYMBOLS  = 1_000_000;
+
 export function parseElf(bytes) {
   if (bytes.byteLength < 16) throw new Error('not ELF (too small)');
   if (bytes[0] !== 0x7F || bytes[1] !== 0x45 || bytes[2] !== 0x4C || bytes[3] !== 0x46) {
@@ -28,10 +34,27 @@ export function parseElf(bytes) {
   const is64 = cls === ELFCLASS64;
   const le = data === ELFDATA2LSB;
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const total = bytes.byteLength;
 
-  function u16(o) { return dv.getUint16(o, le); }
-  function u32(o) { return dv.getUint32(o, le); }
+  // Bounds check helper. All raw reads should go through these so a malformed
+  // ELF surfaces a clean Error instead of a DataView RangeError.
+  function need(off, len, what) {
+    if (off < 0 || len < 0 || off + len > total) {
+      throw new Error(`malformed ELF: ${what} out of range (off=${off} len=${len} total=${total})`);
+    }
+  }
+  function safeSubarray(off, len) {
+    // Clamp to file bounds. Used for string tables where it's safer to
+    // truncate than to refuse the file.
+    const start = Math.max(0, Math.min(off, total));
+    const end   = Math.max(start, Math.min(off + len, total));
+    return bytes.subarray(start, end);
+  }
+
+  function u16(o) { need(o, 2, 'u16'); return dv.getUint16(o, le); }
+  function u32(o) { need(o, 4, 'u32'); return dv.getUint32(o, le); }
   function u64(o) {
+    need(o, 8, 'u64');
     // ELF offsets and sizes can exceed 2^53 in theory, but in practice no.
     // Read as BigInt then narrow.
     const v = dv.getBigUint64(o, le);
@@ -78,6 +101,15 @@ export function parseElf(bytes) {
   };
 
   // ── Section header table ────────────────────────────────────────────────
+  // Sanity check entry size + count before walking the table. shentsize is
+  // user-controlled and could trivially be 0 (infinite-ish loop) or huge.
+  const minShEnt = is64 ? 64 : 40;
+  if (header.e_shnum > MAX_SECTIONS) {
+    throw new Error(`malformed ELF: e_shnum=${header.e_shnum} exceeds cap ${MAX_SECTIONS}`);
+  }
+  if (header.e_shnum > 0 && header.e_shentsize < minShEnt) {
+    throw new Error(`malformed ELF: e_shentsize=${header.e_shentsize} smaller than minimum ${minShEnt}`);
+  }
   const sections = [];
   for (let i = 0; i < header.e_shnum; i++) {
     const base = Number(header.e_shoff) + i * header.e_shentsize;
@@ -111,7 +143,7 @@ export function parseElf(bytes) {
   let shstr = null;
   if (header.e_shstrndx < sections.length) {
     const s = sections[header.e_shstrndx];
-    shstr = bytes.subarray(Number(s.sh_offset), Number(s.sh_offset) + Number(s.sh_size));
+    shstr = safeSubarray(Number(s.sh_offset), Number(s.sh_size));
   }
   function readStr(table, idx) {
     if (!table || idx < 0 || idx >= table.byteLength) return '';
@@ -124,6 +156,13 @@ export function parseElf(bytes) {
   for (const s of sections) s.name = readStr(shstr, s.sh_name);
 
   // ── Program header table ────────────────────────────────────────────────
+  const minPhEnt = is64 ? 56 : 32;
+  if (header.e_phnum > MAX_SEGMENTS) {
+    throw new Error(`malformed ELF: e_phnum=${header.e_phnum} exceeds cap ${MAX_SEGMENTS}`);
+  }
+  if (header.e_phnum > 0 && header.e_phentsize < minPhEnt) {
+    throw new Error(`malformed ELF: e_phentsize=${header.e_phentsize} smaller than minimum ${minPhEnt}`);
+  }
   const segments = [];
   for (let i = 0; i < header.e_phnum; i++) {
     const base = Number(header.e_phoff) + i * header.e_phentsize;
@@ -155,15 +194,20 @@ export function parseElf(bytes) {
   const symbols = [];
   const SHT_SYMTAB = 2;
   const SHT_DYNSYM = 11;
+  let symbolsRemaining = MAX_SYMBOLS;
   for (const s of sections) {
     if (s.sh_type !== SHT_SYMTAB && s.sh_type !== SHT_DYNSYM) continue;
     const strSec = sections[s.sh_link];
     const strTable = strSec
-      ? bytes.subarray(Number(strSec.sh_offset), Number(strSec.sh_offset) + Number(strSec.sh_size))
+      ? safeSubarray(Number(strSec.sh_offset), Number(strSec.sh_size))
       : null;
     const entSize = is64 ? 24 : 16;
-    const count = Math.floor(Number(s.sh_size) / entSize);
+    const rawCount = Math.floor(Number(s.sh_size) / entSize);
+    // Clamp to whatever fits in the file *and* our global symbol budget.
     const base = Number(s.sh_offset);
+    const fitsInFile = Math.max(0, Math.floor((total - base) / entSize));
+    const count = Math.min(rawCount, fitsInFile, symbolsRemaining);
+    symbolsRemaining -= count;
     for (let i = 0; i < count; i++) {
       const eo = base + i * entSize;
       const sym = is64 ? {

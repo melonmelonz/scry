@@ -17,6 +17,17 @@
 <link rel="stylesheet" href="css/disasm.css">
 <link rel="stylesheet" href="css/emu.css">
 <link rel="stylesheet" href="css/trace.css">
+<script>
+  // Apply stored theme synchronously to avoid a light-flash on first paint.
+  // Allowed values are "light" and "dark"; anything else falls through to the
+  // OS preference handled by the @media query in tokens.css.
+  try {
+    var t = localStorage.getItem('scry-theme');
+    if (t === 'light' || t === 'dark') {
+      document.documentElement.setAttribute('data-theme', t);
+    }
+  } catch (e) { /* storage blocked — fall back to system pref */ }
+</script>
 </head>
 <body>
 <div id="app"></div>

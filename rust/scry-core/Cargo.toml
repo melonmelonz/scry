@@ -1,0 +1,24 @@
+[package]
+name = "scry-core"
+version = "0.1.0"
+edition = "2021"
+description = "Rust core for the Scry binary workbench (v2). Exposes ELF parsing, hex helpers, and a future RV32 disassembler via wasm-bindgen."
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde-wasm-bindgen = "0.6"
+goblin = { version = "0.8", default-features = false, features = ["elf32", "elf64", "endian_fd"] }
+
+[features]
+default = []
+
+# wasm-pack will run wasm-opt on the output by default. The bundled wasm-opt
+# in some toolchains chokes on Rust's modern bulk-memory instructions; turn
+# it off for now and accept the slightly larger module.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
