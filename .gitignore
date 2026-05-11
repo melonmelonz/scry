@@ -1,9 +1,5 @@
 # Build artifacts
 web/dist/
-web/node_modules/
-rust-core/target/
-web/src/lib/wasm/
-*.wasm.gz
 
 # Editor
 .vscode/

@@ -1,0 +1,53 @@
+:root {
+  /* palette */
+  --bg:        #F2F1EC;
+  --paper:     #FAF8F2;
+  --grey:      #DEDDD7;
+  --rule:      #C7C5BF;
+  --ink:       #1F2421;
+  --muted:     #8A8E87;
+  --mint:      #A6C9B5;
+  --mint-deep: #5E957A;
+  --mint-pale: #E2EEE7;
+
+  /* type */
+  --mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, monospace;
+
+  /* sizes (px) */
+  --fs-label:    9px;
+  --fs-chrome:   10px;
+  --fs-chrome-2: 11px;
+  --fs-body:     12px;
+  --fs-body-2:   13px;
+  --fs-h4:       14px;
+  --fs-h3:       16px;
+  --fs-h2:       22px;
+  --fs-display:  32px;
+
+  /* tracking */
+  --tr-label:   0.16em;
+  --tr-bracket: 0.14em;
+
+  /* spacing */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 22px;
+  --sp-6: 28px;
+  --sp-7: 40px;
+  --sp-8: 56px;
+
+  /* radii */
+  --r-1: 3px;
+  --r-2: 4px;
+  --r-3: 6px;
+
+  /* rules */
+  --r-thin:   1px solid var(--grey);
+  --r-strong: 1px solid var(--ink);
+
+  /* motion */
+  --t-fast: 120ms ease;
+  --t-base: 200ms ease;
+}

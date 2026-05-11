@@ -1,0 +1,45 @@
+.s-empty {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px;
+}
+.s-empty .zone {
+  border: 1px dashed var(--rule);
+  border-radius: var(--r-3);
+  padding: 80px 64px;
+  text-align: center;
+  background: rgba(166, 201, 181, 0.04);
+  max-width: 640px;
+  transition: border-color var(--t-base), background var(--t-base);
+}
+.s-empty .zone.over {
+  border-color: var(--mint-deep);
+  background: var(--mint-pale);
+}
+.s-empty h2 {
+  font-size: var(--fs-h2);
+  font-weight: 400;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+}
+.s-empty p.subtitle {
+  font-size: var(--fs-chrome-2);
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+.s-empty button.pick {
+  margin-top: 28px;
+  font-size: var(--fs-chrome);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  padding: 10px 18px;
+  border: 1px solid var(--mint-deep);
+  color: var(--mint-deep);
+  background: var(--paper);
+  border-radius: var(--r-1);
+  transition: background var(--t-fast);
+  font-family: inherit;
+}
+.s-empty button.pick:hover { background: var(--mint-pale); }

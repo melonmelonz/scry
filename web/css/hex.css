@@ -1,0 +1,94 @@
+.hex-wrap {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+  padding: 0 22px 22px;
+}
+.hex-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 16px 0 12px;
+  border-bottom: 1px solid var(--grey);
+  margin-bottom: 12px;
+}
+.hex-bar .title {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.hex-bar form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.hex-bar .lab {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--mint-deep);
+}
+.hex-bar input {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 5px 8px;
+  background: var(--paper);
+  border: 1px solid var(--grey);
+  border-radius: 3px;
+  width: 130px;
+}
+.hex-bar input:focus { outline: none; border-color: var(--mint-deep); }
+
+.hex-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  position: relative;
+}
+
+.hex-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 170px;
+  gap: 22px;
+  padding: 0;
+  align-items: center;
+  font-size: 11px;
+  line-height: 20px;
+  height: 20px;
+  white-space: nowrap;
+}
+.hex-row .addr { color: var(--muted); }
+.hex-row .bytes { letter-spacing: 0.04em; }
+.hex-row .bytes .ovr { background: var(--mint-pale); padding: 1px 1px; }
+.hex-row .bytes .ovr:hover { background: var(--mint); cursor: help; }
+.hex-row .bytes .ovr.hot { background: var(--mint); }
+.hex-row .ascii { color: var(--muted); }
+.hex-row .ascii .ovr { background: var(--mint-pale); padding: 1px 1px; color: var(--ink); }
+.hex-row .ascii .ovr.hot { background: var(--mint); }
+.hex-row .mid { display: inline-block; width: 8px; }
+
+/* Overlay tip */
+.tip {
+  background: var(--mint-pale);
+  border-left: 2px solid var(--mint-deep);
+  padding: 12px 16px;
+  font-size: 11px;
+  margin-top: 14px;
+}
+.tip .head, .tip .row {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 12px;
+  padding: 2px 0;
+}
+.tip .l { font-size: 9px; letter-spacing: 0.14em; color: var(--mint-deep); }
+.tip .n { font-weight: 600; color: var(--ink); }
+.tip .v { color: var(--ink); }
+.tip .v.mint { color: var(--mint-deep); font-weight: 500; }
+.tip .desc {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 10px;
+}
