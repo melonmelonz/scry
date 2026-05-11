@@ -32,7 +32,7 @@
     --muted:     #8A8E87;
     --mint:      #6B9F84;
     --mint-deep: #8FC2A8;
-    --mint-pale: #1F2E27;
+    --mint-pale: #243A30;
     color-scheme: dark;
   }
   @media (prefers-color-scheme: dark) {
@@ -45,10 +45,12 @@
       --muted:     #8A8E87;
       --mint:      #6B9F84;
       --mint-deep: #8FC2A8;
-      --mint-pale: #1F2E27;
+      --mint-pale: #243A30;
       color-scheme: dark;
     }
   }
+  html { color-scheme: light dark; accent-color: var(--mint-deep); }
+  ::selection { background: var(--mint-deep); color: var(--paper); }
   .theme-toggle {
     font-family: inherit;
     font-size: 13px;
@@ -668,6 +670,335 @@
   .stack dd { color: var(--ink); }
   .stack dd .muted { color: var(--muted); }
 
+  /* ─── Persona card ─────────────────────────── */
+  .persona {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 28px;
+    background: var(--paper);
+    border: 1px solid var(--grey);
+    border-radius: 6px;
+    padding: 26px 28px;
+    margin: 18px 0 8px;
+    position: relative;
+  }
+  .persona::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--mint-deep);
+  }
+  @media (max-width: 720px) { .persona { grid-template-columns: 1fr; } }
+  .persona-id {
+    border-right: 1px solid var(--grey);
+    padding-right: 20px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  @media (max-width: 720px) {
+    .persona-id { border-right: 0; border-bottom: 1px solid var(--grey); padding-right: 0; padding-bottom: 16px; }
+  }
+  .persona-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .persona-role {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--mint-deep);
+  }
+  .persona-tag {
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .persona-body { font-size: 12px; line-height: 1.65; }
+  .persona-body .label-row {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 14px;
+    align-items: baseline;
+    padding: 4px 0;
+  }
+  .persona-body .label-row + .label-row { border-top: 1px dashed var(--rule); padding-top: 10px; margin-top: 6px; }
+  .persona-body .l {
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding-top: 3px;
+  }
+  .persona-body .v { color: var(--ink); }
+
+  /* ─── User stories ─────────────────────────── */
+  .stories {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 20px 0;
+  }
+  @media (max-width: 720px) { .stories { grid-template-columns: 1fr; } }
+  .story {
+    background: var(--paper);
+    border: 1px solid var(--grey);
+    border-left: 2px solid var(--mint-deep);
+    border-radius: 4px;
+    padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 8px;
+    font-size: 12px;
+  }
+  .story .sid {
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    color: var(--mint-deep);
+    text-transform: uppercase;
+  }
+  .story .body { color: var(--ink); line-height: 1.55; }
+  .story .body .ink { color: var(--ink); font-weight: 500; }
+  .story .meets {
+    border-top: 1px dashed var(--rule);
+    padding-top: 8px;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+  }
+  .story .meets b {
+    color: var(--mint-deep);
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-right: 6px;
+    font-size: 9px;
+  }
+
+  /* ─── Pipeline diagram ─────────────────────── */
+  .pipeline {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0;
+    align-items: stretch;
+    padding: 22px;
+    font-size: 11px;
+  }
+  @media (max-width: 720px) { .pipeline { grid-template-columns: 1fr 1fr; } }
+  .pipe-step {
+    border: 1px solid var(--grey);
+    background: var(--bg);
+    padding: 14px 12px;
+    display: flex; flex-direction: column; gap: 6px;
+    position: relative;
+  }
+  .pipe-step + .pipe-step { border-left: 0; }
+  @media (max-width: 720px) {
+    .pipe-step + .pipe-step { border-left: 1px solid var(--grey); }
+  }
+  .pipe-step .pn {
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    color: var(--mint-deep);
+    text-transform: uppercase;
+  }
+  .pipe-step .pt { font-size: 12px; color: var(--ink); font-weight: 500; }
+  .pipe-step .pd { font-size: 10px; color: var(--muted); line-height: 1.5; }
+  .pipe-step.spine { background: var(--mint-pale); border-color: var(--mint-deep); }
+
+  /* ─── Theme comparison ─────────────────────── */
+  .theme-pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+  @media (max-width: 720px) { .theme-pair { grid-template-columns: 1fr; } }
+  .theme-card {
+    padding: 22px 24px;
+    display: flex; flex-direction: column; gap: 14px;
+    border-right: 1px solid var(--grey);
+  }
+  .theme-card:last-child { border-right: 0; }
+  @media (max-width: 720px) {
+    .theme-card { border-right: 0; border-bottom: 1px solid var(--grey); }
+    .theme-card:last-child { border-bottom: 0; }
+  }
+  .theme-card.dark {
+    background: #14171A;
+    color: #E8E7E1;
+  }
+  .theme-card.dark .l, .theme-card.dark .muted { color: #8A8E87; }
+  .theme-card.dark .swatch { border-color: #3B4146; }
+  .theme-card.dark .mint { color: #8FC2A8; }
+  .theme-card .l {
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .theme-card .row {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 14px;
+    align-items: center;
+    font-size: 10px;
+  }
+  .theme-card .row .sw {
+    display: inline-flex; gap: 4px; align-items: center;
+  }
+  .theme-card .row .sw .swatch { width: 14px; height: 14px; border-radius: 2px; border: 1px solid var(--rule); }
+  .theme-card .row .name {
+    font-size: 9px; letter-spacing: 0.14em;
+  }
+
+  /* ─── Mode picker mockup ───────────────────── */
+  .mp-shell {
+    padding: 18px 22px 16px;
+    border-bottom: 1px solid var(--ink);
+    display: flex; gap: 18px; align-items: baseline;
+    font-size: 11px;
+  }
+  .mp-brand { font-weight: 600; font-size: 13px; }
+  .mp-brand::before { content: '◆ '; color: var(--mint-deep); }
+  .mp-tag {
+    font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted);
+  }
+  .mp-spacer { flex: 1; }
+  .mp-pick { display: inline-flex; gap: 4px; padding: 2px; border: 1px solid var(--grey); border-radius: 2px; }
+  .mp-pick .b {
+    font-size: 9px; letter-spacing: 0.16em; padding: 5px 12px;
+    color: var(--muted); text-transform: uppercase; border-radius: 2px;
+  }
+  .mp-pick .b.on { background: var(--mint-pale); color: var(--mint-deep); }
+  .mp-scope, .mp-theme {
+    font-size: 9px; letter-spacing: 0.14em; color: var(--mint-deep);
+    padding: 5px 9px; border: 1px solid var(--rule); border-radius: 2px;
+  }
+  .mp-body {
+    padding: 22px;
+    min-height: 220px;
+    display: grid; place-items: center;
+    background: var(--bg);
+    color: var(--muted);
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+  }
+  .mp-body .frame {
+    width: 100%; max-width: 540px;
+    border: 1px dashed var(--rule);
+    padding: 26px 20px;
+    text-align: center;
+    background: var(--paper);
+  }
+  .mp-body .frame .h {
+    color: var(--ink);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: none;
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+  .mp-body .frame .s {
+    color: var(--mint-deep);
+    font-size: 9px; letter-spacing: 0.18em;
+  }
+
+  /* ─── Emu state badges row ─────────────────── */
+  .badges {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    padding: 22px;
+  }
+  .bdg {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 7px 13px;
+    border: 1px solid var(--grey);
+    border-radius: 999px;
+    background: var(--paper);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .bdg .d {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted);
+  }
+  .bdg.ready .d { background: var(--mint-deep); }
+  .bdg.running .d { background: #C39A4B; animation: bdg-pulse 1.4s ease-in-out infinite; }
+  .bdg.halted .d { background: #C0392B; }
+  .bdg.ecall .d { background: var(--mint-deep); box-shadow: 0 0 0 3px var(--mint-pale); }
+  @keyframes bdg-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+  /* ─── Pivot flow ───────────────────────────── */
+  .pivot {
+    display: grid;
+    grid-template-columns: 1fr 80px 1fr;
+    gap: 0;
+    align-items: stretch;
+    font-size: 11px;
+  }
+  @media (max-width: 720px) { .pivot { grid-template-columns: 1fr; } }
+  .pivot-side {
+    padding: 22px;
+    background: var(--bg);
+    border-right: 1px solid var(--grey);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .pivot-side:last-child { border-right: 0; }
+  .pivot .arrow {
+    display: grid; place-items: center;
+    color: var(--mint-deep);
+    font-size: 22px;
+    background: var(--paper);
+  }
+  @media (max-width: 720px) { .pivot .arrow { padding: 12px; } }
+  .pivot-side h5 {
+    font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--muted); font-weight: 500;
+  }
+  .pivot-side .row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: baseline; }
+  .pivot-side .row .n { color: var(--mint-deep); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--mint); }
+  .pivot-side .row .a { color: var(--muted); font-size: 10px; }
+  .pivot-side .row.cur { background: var(--mint-pale); margin: 0 -22px; padding: 4px 22px; }
+
+  /* ─── Transcript ───────────────────────────── */
+  .convo { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
+  .turn {
+    background: var(--paper);
+    border: 1px solid var(--grey);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .turn-head {
+    display: grid;
+    grid-template-columns: 60px 70px 1fr;
+    gap: 14px;
+    padding: 8px 14px;
+    background: rgba(166,201,181,0.07);
+    border-bottom: 1px solid var(--grey);
+    align-items: baseline;
+  }
+  .turn-head .n { color: var(--mint-deep); font-size: 10px; letter-spacing: 0.16em; }
+  .turn-head .who {
+    font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .turn-head .who.user { color: var(--mint-deep); }
+  .turn-head .what { font-size: 10px; color: var(--muted); letter-spacing: 0.04em; }
+  .turn-body { padding: 12px 18px; font-size: 12px; line-height: 1.6; }
+  .turn-body.prompt {
+    border-bottom: 1px dashed var(--rule);
+    background: var(--bg);
+    color: var(--ink);
+    font-style: italic;
+  }
+  .turn-body.prompt::before { content: '“'; color: var(--mint-deep); margin-right: 4px; }
+  .turn-body.prompt::after  { content: '”'; color: var(--mint-deep); margin-left: 2px; }
+  .turn-body.action ul {
+    list-style: none;
+    color: var(--ink);
+    line-height: 1.7;
+    font-size: 11px;
+  }
+  .turn-body.action ul li::before { content: '·  '; color: var(--mint-deep); }
+  .turn-body.action ul li { color: var(--ink); }
+  .turn-body.action ul li .muted { color: var(--muted); }
+
   /* Footer */
   footer {
     margin-top: 80px;
@@ -701,7 +1032,7 @@
     <a class="brand" href="./" style="text-decoration:none;color:inherit;">scry</a>
     <span style="display:inline-flex;align-items:center;gap:14px;">
       <a href="./" style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--mint-deep);text-decoration:none;border:1px solid var(--rule);padding:5px 10px;">&larr; Workbench</a>
-      <span class="doc-meta">Scope Document &middot; v0.2 &middot; 2026-05-11</span>
+      <span class="doc-meta">Scope Document &middot; v0.3 &middot; 2026-05-11</span>
       <button class="theme-toggle" type="button" aria-label="Toggle dark mode" id="theme-toggle">&#x263E;</button>
     </span>
   </header>
@@ -1381,10 +1712,574 @@
 
   <hr class="rule">
 
-  <!-- ─── 08 BUILT WITH CLAUDE ─── -->
+  <!-- ─── 08 PERSONA ─── -->
   <section>
     <div class="sec-head">
       <span class="sec-num">08</span>
+      <span class="sec-title">Who it&rsquo;s for.</span>
+      <span class="sec-tag">User persona</span>
+    </div>
+    <div class="prose">
+      <p>Scry is built for one kind of person and one kind of moment: a systems-leaning engineer who has a binary in front of them, no time, no toolchain on this laptop, and a need to know <span class="ink">what is this and what would it do</span> before deciding whether to spin up the heavy tools.</p>
+    </div>
+
+    <div class="wf">
+      <div class="persona">
+        <div class="persona-id">
+          <span class="persona-tag">Primary</span>
+          <span class="persona-name">The triaging engineer</span>
+          <span class="persona-role">Reverse-engineer &middot; firmware dev &middot; security researcher</span>
+        </div>
+        <div class="persona-body">
+          <div class="label-row">
+            <span class="l">Context</span>
+            <span class="v">Has an unknown ELF, a captured bus log, or someone else&rsquo;s firmware image. Wants the first 80% of triage answered in a browser tab, on any machine, without an install.</span>
+          </div>
+          <div class="label-row">
+            <span class="l">Goals</span>
+            <span class="v">Confirm format and architecture. See sections, symbols, entry. Pivot from a function name into a readable disassembly. Run it just enough to watch what it touches. Decode the bus traffic it would have produced.</span>
+          </div>
+          <div class="label-row">
+            <span class="l">Frustrations</span>
+            <span class="v">Web-based binary tools that upload files. Native tools that need a toolchain per architecture. Inspectors that show the header and stop. Disassemblers without an emulator. Emulators that don&rsquo;t show MMIO.</span>
+          </div>
+          <div class="label-row">
+            <span class="l">Comfort</span>
+            <span class="v">Reads hex. Knows what an MMIO store looks like. Can spot a SPI mode 0 transaction in a waveform. Talks at the level of segments, syscalls, jump tables, decoder state machines.</span>
+          </div>
+          <div class="label-row">
+            <span class="l">Won&rsquo;t accept</span>
+            <span class="v">Uploads. Sign-ups. Telemetry. UI that hides the actual bytes. &ldquo;Magic&rdquo; features that don&rsquo;t show their work. A tool that can&rsquo;t be opened from <code>file://</code>.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="persona">
+        <div class="persona-id">
+          <span class="persona-tag">Secondary</span>
+          <span class="persona-name">The curious systems student</span>
+          <span class="persona-role">CS undergrad &middot; CTF player &middot; hardware-curious</span>
+        </div>
+        <div class="persona-body">
+          <div class="label-row">
+            <span class="l">Context</span>
+            <span class="v">Wants to feel how ELF, RV32, and a synthetic bus actually fit together. Came in through a class, a CTF, or a friend&rsquo;s rabbit hole.</span>
+          </div>
+          <div class="label-row">
+            <span class="l">Goals</span>
+            <span class="v">Drop a sample. Click around. Walk from header bytes through disassembly into an emulator into a bus trace. Build intuition without spending three weekends on a toolchain.</span>
+          </div>
+          <div class="label-row">
+            <span class="l">Comfort</span>
+            <span class="v">Knows what hex is. Doesn&rsquo;t know what <code>e_phoff</code> means yet. Will read a hover tip. Will not read a wiki.</span>
+          </div>
+          <div class="label-row">
+            <span class="l">Won&rsquo;t accept</span>
+            <span class="v">Tools that require a paid plan, a Discord, or a 40-page setup guide to see a hello-world disassembly.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="wf-caption">Fig. 07 &middot; Personas &mdash; the two readers this dock is written for</p>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ─── 09 USER STORIES ─── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">09</span>
+      <span class="sec-title">User stories.</span>
+      <span class="sec-tag">Shipped &middot; acceptance-linked</span>
+    </div>
+    <div class="prose">
+      <p>Every story below is satisfied by code that is live at <a href="https://goolz.org/scry" style="color:var(--mint-deep);text-decoration:none">goolz.org/scry</a> today. Each maps to one or more modules and to the security and UX passes documented in &sect;00 and &sect;13.</p>
+    </div>
+
+    <div class="stories">
+      <div class="story">
+        <span class="sid">US-01 &middot; Inspect</span>
+        <span class="body">As a <span class="ink">reverse engineer</span>, I want to drop an ELF on the page and immediately see its class, machine, entry point, sections, and symbols, so that I can decide in seconds whether this binary is worth deeper analysis.</span>
+        <span class="meets"><b>Meets</b>V1 Inspect &middot; V2 Inspect (goblin) &middot; file-context rail</span>
+      </div>
+      <div class="story">
+        <span class="sid">US-02 &middot; Privacy</span>
+        <span class="body">As a <span class="ink">security-conscious user</span>, I want every byte to stay on my machine, so that I can analyze sensitive customer or research artifacts without an upload, a login, or a server round-trip.</span>
+        <span class="meets"><b>Meets</b>Client-only architecture &middot; status bar &ldquo;LOCAL &middot; NO UPLOAD&rdquo; &middot; CSP-friendly</span>
+      </div>
+      <div class="story">
+        <span class="sid">US-03 &middot; Robustness</span>
+        <span class="body">As a <span class="ink">triaging engineer</span>, I want a malformed or hostile ELF to fail loudly instead of crashing the tab, so that I can keep working without losing context on the other files I&rsquo;ve already opened.</span>
+        <span class="meets"><b>Meets</b>Bounds-checked DataView reader &middot; section/segment/symbol caps &middot; 64 MiB ingest cap</span>
+      </div>
+      <div class="story">
+        <span class="sid">US-04 &middot; Hex view</span>
+        <span class="body">As a <span class="ink">forensic reader</span>, I want to scroll a 10 MB+ binary in the hex view without jank and click any byte to learn what struct field it&rsquo;s part of, so that I can correlate raw bytes with parsed structure.</span>
+        <span class="meets"><b>Meets</b>V1 virtualized hex &middot; ELF header overlay &middot; click-to-select byte detail</span>
+      </div>
+      <div class="story">
+        <span class="sid">US-05 &middot; Disasm pivot</span>
+        <span class="body">As a <span class="ink">reverse engineer</span>, I want to click a symbol in the Inspect view and land on that exact instruction in Disasm, so that I can read code at the level of intent (&ldquo;main&rdquo;) instead of addresses.</span>
+        <span class="meets"><b>Meets</b>V1 Inspect&rarr;Disasm pivot &middot; goto-address form &middot; symbol inlining</span>
+      </div>
+      <div class="story">
+        <span class="sid">US-06 &middot; Emulation</span>
+        <span class="body">As an <span class="ink">embedded firmware engineer</span>, I want to step or run an RV32IMA program in the tab and watch the register file and MMIO region change, so that I can verify behavior without booting real hardware.</span>
+        <span class="meets"><b>Meets</b>V1 RV32IMA interpreter &middot; register + memory panels &middot; STEP / RUN / PAUSE / RESET</span>
+      </div>
+      <div class="story">
+        <span class="sid">US-07 &middot; Bus decode</span>
+        <span class="body">As a <span class="ink">hardware hacker</span>, I want the emulator&rsquo;s MMIO writes to surface as a decoded SPI/I&sup2;C waveform with click-for-detail on each transaction, so that I can read the bus the firmware would have produced.</span>
+        <span class="meets"><b>Meets</b>V1 Trace &middot; SPI + I&sup2;C decoders &middot; Canvas waveform &middot; transaction detail panel</span>
+      </div>
+      <div class="story">
+        <span class="sid">US-08 &middot; Two engines</span>
+        <span class="body">As an <span class="ink">engineering reviewer</span>, I want to flip between a hand-rolled zero-dependency build and a Rust&rarr;WASM build of the same workbench, so that I can judge both the primitives and the production shape from one URL.</span>
+        <span class="meets"><b>Meets</b>Unified shell &middot; hash routing (#v1 / #v2) &middot; <code>scry-mode</code> persistence</span>
+      </div>
+      <div class="story">
+        <span class="sid">US-09 &middot; Dark mode</span>
+        <span class="body">As a <span class="ink">long-session reader</span>, I want a dark theme that persists across page loads and across both engines, so that I can read hex and disassembly for an hour without eye strain.</span>
+        <span class="meets"><b>Meets</b>CSS tokens &middot; <code>scry-theme</code> in localStorage &middot; <code>postMessage</code> across iframe &middot; <code>prefers-color-scheme</code> fallback</span>
+      </div>
+      <div class="story">
+        <span class="sid">US-10 &middot; Trusted samples</span>
+        <span class="body">As a <span class="ink">first-time visitor</span>, I want one click to load a sample firmware and see the spine end-to-end, so that I can evaluate the tool without owning a binary.</span>
+        <span class="meets"><b>Meets</b>Samples picker &middot; filename whitelist regex &middot; bundled <code>peek-firmware.elf</code></span>
+      </div>
+      <div class="story">
+        <span class="sid">US-11 &middot; Receipts</span>
+        <span class="body">As an <span class="ink">applications reviewer</span>, I want a single document that says what was built, why, what the AI did, and what the human did, so that I can evaluate the work without spelunking the git history.</span>
+        <span class="meets"><b>Meets</b>This scope dock &middot; &sect;00 status &middot; &sect;13 build-with-Claude writeup &middot; &sect;12 verbatim transcript</span>
+      </div>
+      <div class="story">
+        <span class="sid">US-12 &middot; Local first</span>
+        <span class="body">As a <span class="ink">distrust-by-default user</span>, I want the V1 build to work from <code>file://</code> with no network, so that I can verify the tool is doing what it claims on a fully airgapped machine.</span>
+        <span class="meets"><b>Meets</b>V1 zero runtime deps &middot; no CDN &middot; offline-capable assets</span>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ─── 10 FEATURES ─── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">10</span>
+      <span class="sec-title">Features.</span>
+      <span class="sec-tag">MVP &middot; additional</span>
+    </div>
+    <div class="prose">
+      <p>The MVP column is the load-bearing surface &mdash; the work without which scry is not scry. The additional column is shipped polish that earned its place during the UX and security passes. Everything below is live; anything that isn&rsquo;t is in the &ldquo;Out &middot; deferred&rdquo; list in &sect;06.</p>
+    </div>
+
+    <div class="cut">
+      <div class="cut-col">
+        <h4>MVP &middot; required</h4>
+        <ul>
+          <li>Client-only architecture &middot; no upload, no login, no server</li>
+          <li>Drag-and-drop file intake with format sniffing (ELF magic)</li>
+          <li>ELF parser (32 + 64, LE + BE) with sections, segments, symbols</li>
+          <li>Virtualized hex view with ELF-header struct overlay</li>
+          <li>RV32IMA disassembly with symbol resolution + jump-arrow gutter</li>
+          <li>RV32IMA interpreter with register file, MMIO map, STEP / RUN / PAUSE / RESET</li>
+          <li>Synthetic bus pipeline from emulator MMIO writes to Trace</li>
+          <li>SPI + I&sup2;C decoders running on the bus log</li>
+          <li>Canvas waveform render with cycle-accurate timing</li>
+          <li>Two engines, one shell &middot; V1 pure JS &middot; V2 Rust&rarr;WASM</li>
+          <li>Hash routing &middot; static-host friendly &middot; works from <code>file://</code></li>
+          <li>File-context rail &middot; status bar &middot; per-module hints</li>
+        </ul>
+      </div>
+      <div class="cut-col">
+        <h4>Additional &middot; shipped polish</h4>
+        <ul>
+          <li>Dark mode with persisted <code>scry-theme</code> + <code>prefers-color-scheme</code> fallback</li>
+          <li>Theme propagation across iframe via <code>postMessage</code></li>
+          <li>Mode persistence (<code>localStorage[&apos;scry-mode&apos;]</code> + URL hash)</li>
+          <li>Tooltips on disabled tabs explaining gating</li>
+          <li>Color-coded emulator state badges (Ready &middot; Running &middot; ECALL &middot; Halted &middot; Paused)</li>
+          <li>Click-to-select byte detail in hex view</li>
+          <li>Click-to-pivot from Inspect symbol to Disasm address</li>
+          <li>Goto-address form in Disasm</li>
+          <li>Click-for-detail panel on Trace transactions</li>
+          <li>Samples picker with filename whitelist regex</li>
+          <li>Bounds-checked DataView reader (overflow-safe offsets)</li>
+          <li>Section / segment / symbol count caps (65,535 / 65,535 / 1,000,000)</li>
+          <li>64 MiB drag-drop ingest ceiling</li>
+          <li>esbuild-minified V1 &middot; Vite-bundled V2 &middot; CF Pages compression</li>
+          <li>Scope dock at <code>/scry/scope.html</code> with personas, stories, transcript</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ─── 11 ITERATION & SHIP ─── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">11</span>
+      <span class="sec-title">Iteration &amp; ship.</span>
+      <span class="sec-tag">What got built &middot; wireframes</span>
+    </div>
+    <div class="prose">
+      <p>Figures 01&ndash;06 show the original module designs. The figures below document what actually got built across this session: the unified shell, the dark-mode palette, the V2 toolchain pipeline, the emulator&rsquo;s state vocabulary, and the connective UX (byte detail, symbol pivot, transaction detail) that earned its place during the UX pass.</p>
+    </div>
+
+    <!-- Fig 08 · Unified shell -->
+    <div class="wf">
+      <div class="mp-shell">
+        <span class="mp-brand">scry</span>
+        <span class="mp-tag">A binary, decoded in your tab</span>
+        <span class="mp-spacer"></span>
+        <span class="mp-pick">
+          <span class="b on">V1 &middot; PURE</span>
+          <span class="b">V2 &middot; RUST &middot; WASM</span>
+        </span>
+        <span class="mp-scope">SCOPE</span>
+        <span class="mp-theme">&#x263E;</span>
+      </div>
+      <div class="mp-body">
+        <div class="frame">
+          <div class="h">workbench surface (iframe)</div>
+          <div class="s">/scry/v1/  &middot;  ?embed=1  &middot;  theme proxied via postMessage</div>
+        </div>
+      </div>
+    </div>
+    <p class="wf-caption">Fig. 08 &middot; Unified shell &mdash; one chrome, two engines; mode picker swaps the iframe in place</p>
+
+    <!-- Fig 09 · Dark mode palette -->
+    <div class="wf">
+      <div class="theme-pair">
+        <div class="theme-card">
+          <span class="l">Light &middot; apothecary paper</span>
+          <div class="row">
+            <span class="sw">
+              <span class="swatch" style="background:#F2F1EC"></span>
+              <span class="swatch" style="background:#FAF8F2"></span>
+              <span class="swatch" style="background:#DEDDD7"></span>
+              <span class="swatch" style="background:#A6C9B5"></span>
+              <span class="swatch" style="background:#5E957A"></span>
+              <span class="swatch" style="background:#1F2421"></span>
+            </span>
+            <span class="name">bg &middot; paper &middot; grey &middot; mint &middot; mint-deep &middot; ink</span>
+          </div>
+          <div class="row">
+            <span class="name muted">Sample chrome</span>
+            <span style="font-size:11px;color:#1F2421">scry <span style="color:#5E957A">&middot;</span> v1 <span style="color:#8A8E87">pure</span></span>
+          </div>
+        </div>
+        <div class="theme-card dark">
+          <span class="l">Dark &middot; slate &amp; paper</span>
+          <div class="row">
+            <span class="sw">
+              <span class="swatch" style="background:#14171A"></span>
+              <span class="swatch" style="background:#1B1F23"></span>
+              <span class="swatch" style="background:#2A2F33"></span>
+              <span class="swatch" style="background:#6B9F84"></span>
+              <span class="swatch" style="background:#8FC2A8"></span>
+              <span class="swatch" style="background:#E8E7E1"></span>
+            </span>
+            <span class="name">bg &middot; paper &middot; grey &middot; mint &middot; mint-deep &middot; ink</span>
+          </div>
+          <div class="row">
+            <span class="name muted">Sample chrome</span>
+            <span style="font-size:11px;color:#E8E7E1">scry <span class="mint">&middot;</span> v1 <span style="color:#8A8E87">pure</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="wf-caption">Fig. 09 &middot; Dark mode &mdash; same tokens, two skins; persisted via <code>localStorage[&apos;scry-theme&apos;]</code> and pushed across the iframe</p>
+
+    <!-- Fig 10 · V2 toolchain pipeline -->
+    <div class="wf">
+      <div class="pipeline">
+        <div class="pipe-step spine">
+          <span class="pn">01 &middot; src</span>
+          <span class="pt">scry-core</span>
+          <span class="pd">Rust crate &middot; goblin &middot; wasm-bindgen</span>
+        </div>
+        <div class="pipe-step spine">
+          <span class="pn">02 &middot; build</span>
+          <span class="pt">wasm-pack</span>
+          <span class="pd">cargo &rarr; .wasm + JS shim &middot; wasm-opt off</span>
+        </div>
+        <div class="pipe-step spine">
+          <span class="pn">03 &middot; bundle</span>
+          <span class="pt">Vite + Svelte 5</span>
+          <span class="pd"><code>base: &apos;./&apos;</code> &middot; top-level await &middot; runes</span>
+        </div>
+        <div class="pipe-step">
+          <span class="pn">04 &middot; stage</span>
+          <span class="pt">rsync &rarr; web/dist</span>
+          <span class="pd">v1 + v2 + scope + shell in one tree</span>
+        </div>
+        <div class="pipe-step">
+          <span class="pn">05 &middot; deploy</span>
+          <span class="pt">CF Pages</span>
+          <span class="pd">esbuild minify v1 &middot; goolz.org/scry</span>
+        </div>
+      </div>
+    </div>
+    <p class="wf-caption">Fig. 10 &middot; V2 pipeline &mdash; Rust to CDN in one <code>scripts/build.sh</code></p>
+
+    <!-- Fig 11 · Emu state badges -->
+    <div class="wf">
+      <div class="badges">
+        <span class="bdg ready"><span class="d"></span>Ready</span>
+        <span class="bdg running"><span class="d"></span>Running &middot; 14,832 cy</span>
+        <span class="bdg ecall"><span class="d"></span>ECALL &middot; scry_bus_emit</span>
+        <span class="bdg halted"><span class="d"></span>Halted &middot; exit 0</span>
+        <span class="bdg"><span class="d"></span>Paused</span>
+      </div>
+    </div>
+    <p class="wf-caption">Fig. 11 &middot; Emulator state badges &mdash; the color-coded vocabulary added in the UX pass</p>
+
+    <!-- Fig 12 · Hex byte detail -->
+    <div class="wf">
+      <div class="hex" style="padding:18px 22px">
+        <div class="hex-row head"><span class="addr">Address</span><span class="bytes">00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F</span><span class="ascii">ASCII</span></div>
+        <div class="hex-row">
+          <span class="addr">0x00000010</span>
+          <span class="bytes">02 00 <span class="ovr deep">F3</span> 00 01 00 00 00  00 00 01 00 34 00 00 00</span>
+          <span class="ascii">............4...</span>
+        </div>
+        <div class="overlay-tip">
+          <span class="l">SELECTED</span>
+          Byte 0x12 &middot; value <strong style="color:var(--ink)">0xF3</strong> &middot; part of <strong style="color:var(--mint-deep)">e_machine</strong> (u16 LE, 0xF3 0x00 &rarr; 0x00F3 &rarr; EM_RISCV / 243) &middot; click any byte to inspect
+        </div>
+      </div>
+    </div>
+    <p class="wf-caption">Fig. 12 &middot; Hex view &mdash; click-to-select byte detail; resolves the field the byte belongs to</p>
+
+    <!-- Fig 13 · Inspect → Disasm pivot -->
+    <div class="wf">
+      <div class="pivot">
+        <div class="pivot-side">
+          <h5>Inspect &middot; symbols</h5>
+          <div class="row"><span class="n">_start</span><span class="a">0x00010000</span></div>
+          <div class="row cur"><span class="n">main</span><span class="a">0x00010040</span></div>
+          <div class="row"><span class="n">spi_write_byte</span><span class="a">0x00010120</span></div>
+          <div class="row"><span class="n">oled_init</span><span class="a">0x00010180</span></div>
+        </div>
+        <div class="arrow">&rarr;</div>
+        <div class="pivot-side">
+          <h5>Disasm &middot; @ main</h5>
+          <div class="row cur"><span class="n" style="text-decoration:none;cursor:default;color:var(--ink)">addi sp, sp, -32</span><span class="a">0x00010040</span></div>
+          <div class="row"><span class="n" style="text-decoration:none;cursor:default;color:var(--ink)">sw &nbsp;ra, 28(sp)</span><span class="a">0x00010044</span></div>
+          <div class="row"><span class="n" style="text-decoration:none;cursor:default;color:var(--ink)">jal ra, oled_init</span><span class="a">0x00010048</span></div>
+          <div class="row"><span class="n" style="text-decoration:none;cursor:default;color:var(--ink)">li &nbsp;a0, 0xA1</span><span class="a">0x0001004C</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="wf-caption">Fig. 13 &middot; Inspect &rarr; Disasm pivot &mdash; click a symbol, land on the instruction</p>
+
+    <!-- Fig 14 · Trace transaction detail -->
+    <div class="wf">
+      <div class="trace-decoded" style="padding:18px 22px">
+        <div class="decoded-row head"><span>Time</span><span>Proto</span><span>Data</span></div>
+        <div class="decoded-row" style="background:var(--mint-pale);margin:0 -22px;padding-left:22px;padding-right:22px">
+          <span class="t">+1.1 &micro;s</span><span class="p">SPI</span><span class="d">MOSI &nbsp;<strong>0xA1</strong> &nbsp;<span class="muted">// 1010_0001 &middot; selected</span></span>
+        </div>
+        <div class="decoded-row"><span class="t">+9.4 &micro;s</span><span class="p">SPI</span><span class="d">MOSI &nbsp;<strong>0xC0</strong> &nbsp;<span class="muted">// 1100_0000</span></span></div>
+        <div class="overlay-tip" style="margin-top:14px">
+          <span class="l">DETAIL</span>
+          Transaction 1 of 3 &middot; CS asserted at +0.2 &micro;s &middot; 8-bit word, MSB first &middot; SPI mode 0 &middot; emitted by store at PC <strong style="color:var(--mint-deep)">0x0001012C</strong> (<code>sw a0, 0(a5)</code>) &middot; emulator cycle 14,832
+        </div>
+      </div>
+    </div>
+    <p class="wf-caption">Fig. 14 &middot; Trace &mdash; click any decoded transaction to see the originating instruction and cycle</p>
+
+    <!-- Fig 15 · Hardened parser boundary -->
+    <div class="wf">
+      <div class="ascii"><span class="muted">// scry-core / parse_elf — boundary checks added in the security pass</span>
+
+<span class="mint">fn</span> read_u32_le(buf: &amp;[u8], off: usize) -&gt; Result&lt;u32, ParseError&gt; {
+    <span class="mint">if</span> off.checked_add(4).map_or(<span class="mint">true</span>, |end| end &gt; buf.len()) {
+        <span class="mint">return</span> Err(ParseError::OutOfBounds { at: off, need: 4 });
+    }
+    Ok(u32::from_le_bytes(buf[off..off+4].try_into().unwrap()))
+}
+
+<span class="muted">// caps prevent integer-overflow DoS on hostile section/segment/symbol counts</span>
+<span class="mint">const</span> MAX_SECTIONS: usize = 65_535;
+<span class="mint">const</span> MAX_SEGMENTS: usize = 65_535;
+<span class="mint">const</span> MAX_SYMBOLS:  usize = 1_000_000;
+
+<span class="muted">// drag-drop intake ceiling (set in the shell, not the parser)</span>
+<span class="mint">const</span> MAX_INGEST:   u64   = 64 * 1024 * 1024;
+
+<span class="muted">// sample manifest filename whitelist — defeats path-traversal via crafted manifest</span>
+<span class="mint">const</span> SAMPLE_NAME:  &amp;str  = r"^[A-Za-z0-9._-]+\.elf$";</div>
+    </div>
+    <p class="wf-caption">Fig. 15 &middot; Hardened parser boundary &mdash; the four guards added in the security pass</p>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ─── 12 CONVERSATION ─── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">12</span>
+      <span class="sec-title">The conversation.</span>
+      <span class="sec-tag">Verbatim &middot; user prompts</span>
+    </div>
+    <div class="prose">
+      <p>The receipts. These are the human prompts that drove the shipped session, in order, unedited. Each is paired with the concrete actions that followed. Read together, they show the texture of working with an AI assistant: short directional asks from the human, surface-area work from the model, with the human keeping scope, voice, and taste.</p>
+      <p>The full assistant turns are long and live in the repo history; what matters here is the cadence of the asks and what each one produced.</p>
+    </div>
+
+    <div class="convo">
+      <div class="turn">
+        <div class="turn-head"><span class="n">T01</span><span class="who user">User</span><span class="what">CSS hygiene + perf pass</span></div>
+        <div class="turn-body prompt">yep just keep going. really do a once over to make sure all the CSS is good. Is tailwind good? i do not want it called it needs bundled properly. are we miniying? that should be allowed and compress it and serve it nice and fast. all of goolz.org should be minified and compressed and served super fast now that I think about it</div>
+        <div class="turn-body action">
+          <ul>
+            <li>Audited every CSS file under <code>web/v1/</code> for stray Tailwind utilities <span class="muted">(none found; build has zero CSS frameworks)</span></li>
+            <li>Confirmed <code>scripts/build.sh</code> esbuild-minifies V1 JS in place after staging</li>
+            <li>Verified Vite handles V2 CSS/JS/WASM minification and content-hashing</li>
+            <li>Confirmed Cloudflare Pages serves <code>brotli</code> + <code>gzip</code> automatically &mdash; no extra config needed</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="turn">
+        <div class="turn-head"><span class="n">T02</span><span class="who user">User</span><span class="what">Class deliverable on AI use</span></div>
+        <div class="turn-body prompt">also we need to make a deliverable documenting all of the work we did here. because this is for a class about AI.</div>
+        <div class="turn-body action">
+          <ul>
+            <li>Wrote <code>docs/ai-session-writeup.md</code> &mdash; eight sections covering scope, what AI did, how I worked with it, where it was load-bearing, where I steered, friction, what I&rsquo;d do differently, closing</li>
+            <li>Kept the prose in the human&rsquo;s voice (hedged, concrete, no em dashes)</li>
+            <li>Cross-linked from this dock as &sect;13 below</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="turn">
+        <div class="turn-head"><span class="n">T03</span><span class="who user">User</span><span class="what">Live-site bug report</span></div>
+        <div class="turn-body prompt">v2 is broken live</div>
+        <div class="turn-body action">
+          <ul>
+            <li>Curled <code>goolz.org/scry/v2/</code> and saw the asset URLs resolving to <code>/v2/assets/&hellip;</code> instead of <code>/scry/v2/assets/&hellip;</code></li>
+            <li>Root cause: Vite&rsquo;s <code>base: &apos;/v2/&apos;</code> hardcoded a path that doesn&rsquo;t exist on the deploy target</li>
+            <li>Fix: <code>base: &apos;./&apos;</code> &mdash; build is now location-independent</li>
+            <li>Verified post-fix that asset paths in the bundle became <code>./assets/index-*.js</code></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="turn">
+        <div class="turn-head"><span class="n">T04</span><span class="who user">User</span><span class="what">Unify the two engines</span></div>
+        <div class="turn-body prompt">and the v1 and v2 dont have the darkmode? you need to unify this to one app, still two modes etc.</div>
+        <div class="turn-body action">
+          <ul>
+            <li>Built a unified shell at <code>web/index.html</code> with a mode picker that hot-swaps V1 and V2 in an iframe</li>
+            <li>Theme lives at the shell; pushed to the iframe via <code>postMessage</code> on toggle</li>
+            <li>Mode persists in <code>localStorage[&apos;scry-mode&apos;]</code> + URL hash (<code>#v1</code> / <code>#v2</code>)</li>
+            <li>Added <code>?embed=1</code> handling so each engine hides its own brand and theme toggle inside the iframe</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="turn">
+        <div class="turn-head"><span class="n">T05</span><span class="who user">User</span><span class="what">README rewrite</span></div>
+        <div class="turn-body prompt">update the README, make sure to really make sure that you highlight the pure JS/html/css build.</div>
+        <div class="turn-body action">
+          <ul>
+            <li>Rewrote <code>README.md</code> to lead with the V1 zero-dependency claim</li>
+            <li>Added the module table with an &ldquo;Implementation&rdquo; column making the hand-rolled provenance explicit</li>
+            <li>V2 moved to a smaller companion section</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="turn">
+        <div class="turn-head"><span class="n">T06</span><span class="who user">User</span><span class="what">PRD update</span></div>
+        <div class="turn-body prompt">also make sure to update the roadmap/PRD document too</div>
+        <div class="turn-body action">
+          <ul>
+            <li>Added a new &ldquo;&sect;0 Status &amp; roadmap (2026-05-11 EOD)&rdquo; block to <code>docs/superpowers/specs/2026-05-11-scry-design.md</code></li>
+            <li>Documents what shipped, direction shifts vs the original spec, a prioritized next list, and deferred items</li>
+            <li>Older sections that contradict the new status are explicitly marked superseded</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="turn">
+        <div class="turn-head"><span class="n">T07</span><span class="who user">User</span><span class="what">Scope dock at /scry</span></div>
+        <div class="turn-body prompt">and make sure at /scry there is a sub domain for the scope dock with everything in it including the work we did together.</div>
+        <div class="turn-body action">
+          <ul>
+            <li>Surfaced this scope dock at <code>goolz.org/scry/scope.html</code> (already deployed in tree)</li>
+            <li>Added a <em>Built with Claude</em> section transposing the AI writeup into the dock&rsquo;s visual language</li>
+            <li>Added a back-link from the dock to the workbench root</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="turn">
+        <div class="turn-head"><span class="n">T08</span><span class="who user">User</span><span class="what">Wireframes for iteration</span></div>
+        <div class="turn-body prompt">and all of this should be under /scry. and the scope dock should have wireframes and mockups.</div>
+        <div class="turn-body action">
+          <ul>
+            <li>Confirmed all assets staged under <code>/scry/</code> in the deploy tree</li>
+            <li>Identified the gap: Fig. 01&ndash;06 covered the original module designs but not what got built in this session</li>
+            <li>Cued up Figs. 07&ndash;15 (this section &sect;11) on next pass</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="turn">
+        <div class="turn-head"><span class="n">T09</span><span class="who user">User</span><span class="what">Polish + wireframe completeness</span></div>
+        <div class="turn-body prompt">is it all super pretty and beautiful? and scope needs wireframs for everything we did.</div>
+        <div class="turn-body action">
+          <ul>
+            <li>Added Figs. 08&ndash;15 covering unified shell, dark mode, V2 pipeline, emu state badges, hex byte detail, Inspect&rarr;Disasm pivot, trace detail, hardened parser boundary</li>
+            <li>Polished spacing, dashed dividers, and the wireframe top-rule on every new figure</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="turn">
+        <div class="turn-head"><span class="n">T10</span><span class="who user">User</span><span class="what">Include the conversation</span></div>
+        <div class="turn-body prompt">and you also put our converstaions in there too right?</div>
+        <div class="turn-body action">
+          <ul>
+            <li>This section. Every prompt verbatim, every action listed below it.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="turn">
+        <div class="turn-head"><span class="n">T11</span><span class="who user">User</span><span class="what">User stories</span></div>
+        <div class="turn-body prompt">and i want user stories on that scope doc too please</div>
+        <div class="turn-body action">
+          <ul>
+            <li>Added &sect;09 &mdash; twelve user stories, each linked to the module or pass that satisfies it</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="turn">
+        <div class="turn-head"><span class="n">T12</span><span class="who user">User</span><span class="what">User persona, professional</span></div>
+        <div class="turn-body prompt">User persona too needs to be on there. It is for me and other nerds who need this niche. it needs to be really professional</div>
+        <div class="turn-body action">
+          <ul>
+            <li>Added &sect;08 &mdash; primary persona (triaging engineer) + secondary (curious systems student)</li>
+            <li>Written for the reader who has hex in their head and no patience for marketing copy</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ─── 13 BUILT WITH CLAUDE ─── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">13</span>
       <span class="sec-title">Built with Claude.</span>
       <span class="sec-tag">AI collaboration writeup</span>
     </div>
@@ -1394,7 +2289,7 @@
     </div>
 
     <div class="subsec-head">
-      <span class="subsec-num">08.1</span>
+      <span class="subsec-num">13.1</span>
       <span class="subsec-title">What the AI did.</span>
     </div>
     <div class="prose">
@@ -1403,7 +2298,7 @@
     </div>
 
     <div class="subsec-head">
-      <span class="subsec-num">08.2</span>
+      <span class="subsec-num">13.2</span>
       <span class="subsec-title">How I worked with it.</span>
     </div>
     <div class="prose">
@@ -1412,7 +2307,7 @@
     </div>
 
     <div class="subsec-head">
-      <span class="subsec-num">08.3</span>
+      <span class="subsec-num">13.3</span>
       <span class="subsec-title">Where AI was load-bearing.</span>
     </div>
     <div class="prose">
@@ -1422,7 +2317,7 @@
     </div>
 
     <div class="subsec-head">
-      <span class="subsec-num">08.4</span>
+      <span class="subsec-num">13.4</span>
       <span class="subsec-title">Where I had to steer.</span>
     </div>
     <div class="prose">
@@ -1432,7 +2327,7 @@
     </div>
 
     <div class="subsec-head">
-      <span class="subsec-num">08.5</span>
+      <span class="subsec-num">13.5</span>
       <span class="subsec-title">Friction worth naming.</span>
     </div>
     <div class="prose">
@@ -1442,7 +2337,7 @@
     </div>
 
     <div class="subsec-head">
-      <span class="subsec-num">08.6</span>
+      <span class="subsec-num">13.6</span>
       <span class="subsec-title">What I would do differently.</span>
     </div>
     <div class="prose">
@@ -1452,7 +2347,7 @@
     </div>
 
     <div class="subsec-head">
-      <span class="subsec-num">08.7</span>
+      <span class="subsec-num">13.7</span>
       <span class="subsec-title">Closing.</span>
     </div>
     <div class="prose">
@@ -1462,7 +2357,7 @@
   </section>
 
   <footer>
-    <span>SCRY · SCOPE · v0.1 · 2026-05-11</span>
+    <span>SCRY · SCOPE · v0.3 · 2026-05-11</span>
     <span><a href="https://github.com/melonmelonz/scry">github.com/melonmelonz/scry</a></span>
   </footer>
 

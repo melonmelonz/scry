@@ -31,7 +31,7 @@
   --muted:     #8A8E87;
   --mint:      #6B9F84;
   --mint-deep: #8FC2A8;
-  --mint-pale: #1F2E27;
+  --mint-pale: #243A30;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -44,10 +44,12 @@
     --muted:     #8A8E87;
     --mint:      #6B9F84;
     --mint-deep: #8FC2A8;
-    --mint-pale: #1F2E27;
+    --mint-pale: #243A30;
     color-scheme: dark;
   }
 }
+html { color-scheme: light dark; accent-color: var(--mint-deep); }
+::selection { background: var(--mint-deep); color: var(--paper); }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
 body {

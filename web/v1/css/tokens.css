@@ -65,7 +65,11 @@
 }
 
 /* Dark palette — applied when user (or system) prefers dark. The token names
-   are stable; only the values shift, so every consumer keeps working. */
+   are stable; only the values shift, so every consumer keeps working.
+
+   Tuned so the tinted surfaces (mint-pale, tint-rail, tint-row) sit clearly
+   above --paper in dark mode. Without that lift, hover and selection states
+   vanish into the background. */
 [data-theme="dark"] {
   --bg:        #14171A;
   --paper:     #1B1F23;
@@ -75,11 +79,11 @@
   --muted:     #8A8E87;
   --mint:      #6B9F84;
   --mint-deep: #8FC2A8;
-  --mint-pale: #1F2E27;
+  --mint-pale: #243A30;
 
-  --tint-rail:    rgba(143, 194, 168, 0.06);
-  --tint-row:     rgba(143, 194, 168, 0.05);
-  --tint-drop:    rgba(143, 194, 168, 0.18);
+  --tint-rail:    rgba(143, 194, 168, 0.12);
+  --tint-row:     rgba(143, 194, 168, 0.08);
+  --tint-drop:    rgba(143, 194, 168, 0.22);
 
   --accent-store:  #C8B870;
   --accent-system: #D08585;
@@ -102,11 +106,11 @@
     --muted:     #8A8E87;
     --mint:      #6B9F84;
     --mint-deep: #8FC2A8;
-    --mint-pale: #1F2E27;
+    --mint-pale: #243A30;
 
-    --tint-rail:    rgba(143, 194, 168, 0.06);
-    --tint-row:     rgba(143, 194, 168, 0.05);
-    --tint-drop:    rgba(143, 194, 168, 0.18);
+    --tint-rail:    rgba(143, 194, 168, 0.12);
+    --tint-row:     rgba(143, 194, 168, 0.08);
+    --tint-drop:    rgba(143, 194, 168, 0.22);
 
     --accent-store:  #C8B870;
     --accent-system: #D08585;

@@ -8,6 +8,19 @@ html, body {
   height: 100%;
 }
 
+html {
+  /* Steer native UI (scrollbars, native form widgets, autofill) to the
+     active palette. The tokens carry this too — but :root + html together
+     ensure embeds and outer pages agree. */
+  color-scheme: light dark;
+  accent-color: var(--mint-deep);
+}
+
+::selection {
+  background: var(--mint-deep);
+  color: var(--paper);
+}
+
 body {
   font-family: var(--mono);
   background: var(--bg);
