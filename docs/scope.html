@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scry — Scope Document</title>
+<meta name="description" content="Scry takes a binary and shows you what it would do, without leaving your browser tab.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #F2F1EC;
+    --paper:     #FAF8F2;
+    --grey:      #DEDDD7;
+    --rule:      #C7C5BF;
+    --ink:       #1F2421;
+    --muted:     #8A8E87;
+    --mint:      #A6C9B5;
+    --mint-deep: #5E957A;
+    --mint-pale: #E2EEE7;
+
+    --mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--mono);
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* The mint stripe */
+  body::before {
+    content: '';
+    position: fixed; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--mint-deep);
+    z-index: 100;
+  }
+
+  /* ─── Layout ───────────────────────────────── */
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 80px 56px 120px;
+  }
+  @media (max-width: 720px) { .page { padding: 56px 24px 80px; } }
+
+  hr.rule { border: 0; border-top: 1px solid var(--grey); margin: 56px 0; }
+  hr.rule.heavy { border-top: 1px solid var(--ink); }
+
+  /* ─── Header ───────────────────────────────── */
+  .doc-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--ink);
+    margin-bottom: 56px;
+  }
+  .brand {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  .brand::before {
+    content: '◆ ';
+    color: var(--mint-deep);
+    font-size: 14px;
+  }
+  .doc-meta {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  /* ─── Hero ─────────────────────────────────── */
+  .hero { margin-bottom: 64px; }
+  .hero-kicker {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--mint-deep);
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+  .hero-pitch {
+    font-size: 32px;
+    font-weight: 300;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    max-width: 900px;
+  }
+  .hero-pitch em {
+    font-style: normal;
+    color: var(--mint-deep);
+  }
+  @media (max-width: 720px) { .hero-pitch { font-size: 22px; } }
+  .hero-foot {
+    display: flex; gap: 32px; margin-top: 40px;
+    font-size: 10px; letter-spacing: 0.14em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .hero-foot .swatches { display: flex; gap: 6px; align-items: center; }
+  .swatch {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 1px solid var(--rule);
+  }
+
+  /* ─── Section headers ──────────────────────── */
+  section { margin-bottom: 64px; }
+  .sec-head {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    align-items: baseline;
+    gap: 24px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--ink);
+    margin-bottom: 28px;
+  }
+  .sec-num {
+    font-size: 11px;
+    color: var(--mint-deep);
+    letter-spacing: 0.16em;
+  }
+  .sec-title {
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+  }
+  .sec-tag {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .subsec-head {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    gap: 24px;
+    align-items: baseline;
+    padding-bottom: 10px;
+    margin: 32px 0 16px;
+    border-bottom: 1px solid var(--grey);
+  }
+  .subsec-num {
+    font-size: 10px;
+    color: var(--mint-deep);
+    letter-spacing: 0.16em;
+  }
+  .subsec-title {
+    font-size: 16px;
+    font-weight: 500;
+  }
+  .subsec-tag {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  /* ─── Prose ────────────────────────────────── */
+  .prose p { margin-bottom: 14px; max-width: 720px; }
+  .prose p .mint { color: var(--mint-deep); }
+  .prose p .ink { color: var(--ink); font-weight: 500; }
+  .prose strong { font-weight: 600; color: var(--ink); }
+  .prose code {
+    font-family: var(--mono);
+    background: var(--paper);
+    padding: 1px 6px;
+    border: 1px solid var(--grey);
+    border-radius: 3px;
+    font-size: 12px;
+  }
+
+  .label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted); }
+
+  /* ─── Code blocks & ASCII ──────────────────── */
+  .ascii {
+    background: var(--paper);
+    border: 1px solid var(--grey);
+    border-radius: 4px;
+    padding: 20px 24px;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.65;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--ink);
+  }
+  .ascii .mint { color: var(--mint-deep); }
+  .ascii .muted { color: var(--muted); }
+
+  /* ─── Wireframe frame ─────────────────────── */
+  .wf {
+    background: var(--paper);
+    border: 1px solid var(--grey);
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 20px 0;
+    position: relative;
+    box-shadow: 0 8px 28px -20px rgba(31,36,33,0.18);
+  }
+  .wf::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--mint-deep);
+  }
+  .wf-caption {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    text-align: center;
+    margin: -8px 0 28px;
+  }
+
+  /* App shell wireframe */
+  .app {
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    min-height: 480px;
+    font-size: 11px;
+  }
+  .app-bar {
+    padding: 14px 22px 12px;
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-bottom: 1px solid var(--ink);
+  }
+  .app-brand { font-weight: 600; font-size: 13px; }
+  .app-brand::before { content: '◆ '; color: var(--mint-deep); }
+  .app-meta {
+    display: flex; gap: 22px; color: var(--muted); font-size: 10px;
+    letter-spacing: 0.12em;
+  }
+  .app-meta .v { color: var(--ink); margin-left: 4px; }
+  .app-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--grey);
+  }
+  .app-tabs span {
+    padding: 11px 18px;
+    font-size: 10px; letter-spacing: 0.16em;
+    color: var(--muted);
+    border-right: 1px solid var(--grey);
+  }
+  .app-tabs .on {
+    color: var(--ink);
+    border-bottom: 2px solid var(--mint-deep);
+    margin-bottom: -1px;
+    background: var(--paper);
+  }
+  .app-body {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    min-height: 320px;
+  }
+  .app-rail {
+    border-right: 1px solid var(--grey);
+    padding: 18px 16px;
+    display: flex; flex-direction: column; gap: 14px;
+    background: rgba(166,201,181,0.05);
+  }
+  .rail-row { display: flex; flex-direction: column; gap: 2px; }
+  .rail-row .l { font-size: 9px; letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; }
+  .rail-row .v { font-size: 11px; color: var(--ink); }
+  .rail-row .v .mint { color: var(--mint-deep); }
+  .app-main { padding: 18px 22px; }
+  .app-foot {
+    padding: 9px 22px;
+    display: flex; justify-content: space-between;
+    border-top: 1px solid var(--grey);
+    font-size: 9px; color: var(--muted); letter-spacing: 0.12em;
+  }
+  .app-foot .dot {
+    display: inline-block; width: 6px; height: 6px;
+    background: var(--mint-deep); border-radius: 50%;
+    margin-right: 6px; vertical-align: 1px;
+  }
+
+  /* Numbered rows (used in shell main) */
+  .nrows {
+    display: grid;
+    grid-template-columns: 32px 1fr;
+  }
+  .nrows .num {
+    border-right: 1px solid var(--grey);
+    padding-top: 4px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .nrows .rows {
+    padding-left: 22px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .nrows .row { display: flex; flex-direction: column; gap: 2px; }
+  .nrows .row .l { font-size: 9px; letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; }
+  .nrows .row .v { font-size: 12px; }
+  .nrows .row .v .mint { color: var(--mint-deep); }
+  .nrows .row .v .bracket { color: var(--mint-deep); }
+
+  /* Tables (inspect view) */
+  table.t {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+  table.t th {
+    text-align: left;
+    font-weight: 500;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--ink);
+  }
+  table.t td {
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--grey);
+  }
+  table.t tr:last-child td { border-bottom: 0; }
+  table.t td .mint { color: var(--mint-deep); }
+  table.t td .muted { color: var(--muted); }
+  table.t .num { color: var(--muted); width: 32px; }
+
+  /* Hex view wireframe */
+  .hex {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 16px 22px;
+    overflow-x: auto;
+  }
+  .hex-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 150px;
+    gap: 22px;
+    padding: 2px 0;
+    align-items: center;
+  }
+  .hex-row.head {
+    border-bottom: 1px solid var(--grey);
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    color: var(--muted);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+  }
+  .hex-row .addr { color: var(--muted); }
+  .hex-row .bytes { letter-spacing: 0.04em; white-space: nowrap; }
+  .hex-row .ascii { color: var(--muted); white-space: nowrap; }
+  .hex-row .bytes .ovr {
+    background: var(--mint-pale);
+    color: var(--ink);
+    padding: 1px 3px;
+    margin: 0 -1px;
+    border-radius: 2px;
+  }
+  .hex-row .bytes .ovr.deep { background: rgba(166,201,181,0.7); }
+  .hex-row .ascii .ovr { background: var(--mint-pale); padding: 1px 2px; }
+  .overlay-tip {
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: var(--mint-pale);
+    border-left: 2px solid var(--mint-deep);
+    font-size: 11px;
+  }
+  .overlay-tip .l { font-size: 9px; letter-spacing: 0.14em; color: var(--mint-deep); margin-right: 8px; }
+
+  /* Disasm wireframe */
+  .disasm {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 16px 0 16px 0;
+  }
+  .disasm-row {
+    display: grid;
+    grid-template-columns: 48px 90px 140px 1fr;
+    gap: 16px;
+    padding: 3px 22px;
+    align-items: center;
+    position: relative;
+  }
+  .disasm-row.cur {
+    background: var(--mint-pale);
+  }
+  .disasm-row .gut {
+    color: var(--mint-deep);
+    text-align: center;
+  }
+  .disasm-row .addr { color: var(--muted); }
+  .disasm-row .bytes { color: var(--muted); }
+  .disasm-row .insn .op { color: var(--ink); font-weight: 500; }
+  .disasm-row .insn .arg { color: var(--ink); }
+  .disasm-row .insn .arg.mint { color: var(--mint-deep); }
+  .disasm-row .insn .arg.muted { color: var(--muted); }
+  .disasm-label {
+    padding: 10px 22px 4px;
+    color: var(--mint-deep);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* Emulator wireframe */
+  .emu {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    min-height: 380px;
+  }
+  .emu-left { border-right: 1px solid var(--grey); }
+  .emu-section { padding: 16px 22px; border-bottom: 1px solid var(--grey); }
+  .emu-section h4 {
+    font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--muted); font-weight: 500; margin-bottom: 12px;
+  }
+  .regs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px 18px;
+    font-size: 11px;
+  }
+  .reg .name { color: var(--muted); width: 28px; display: inline-block; }
+  .reg .val { color: var(--ink); }
+  .reg .val.mint { color: var(--mint-deep); }
+  .emu-disasm-mini {
+    font-size: 11px;
+    line-height: 1.7;
+  }
+  .emu-disasm-mini .r { display: grid; grid-template-columns: 80px 1fr; gap: 16px; padding: 1px 0; }
+  .emu-disasm-mini .r.cur { background: var(--mint-pale); margin: 0 -22px; padding-left: 22px; padding-right: 22px; }
+  .emu-disasm-mini .a { color: var(--muted); }
+  .emu-mem-row {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 16px;
+    font-size: 11px;
+    padding: 2px 0;
+  }
+  .emu-mem-row .a { color: var(--muted); }
+  .emu-controls {
+    padding: 14px 22px;
+    display: flex; gap: 10px; align-items: center;
+  }
+  .btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    background: var(--paper);
+    border: 1px solid var(--grey);
+    border-radius: 3px;
+    color: var(--ink);
+  }
+  .btn.primary {
+    background: var(--mint-pale);
+    border-color: var(--mint-deep);
+    color: var(--mint-deep);
+  }
+
+  /* Trace / waveform wireframe */
+  .trace-wave { padding: 16px 22px; border-bottom: 1px solid var(--grey); }
+  .wave-grid {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .wave-label { font-size: 10px; letter-spacing: 0.14em; color: var(--muted); }
+  .wave-svg { width: 100%; height: 36px; }
+  .trace-decoded { padding: 14px 22px; }
+  .decoded-row {
+    display: grid;
+    grid-template-columns: 90px 60px 1fr;
+    gap: 16px;
+    font-size: 11px;
+    padding: 3px 0;
+  }
+  .decoded-row.head {
+    color: var(--muted);
+    font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
+    border-bottom: 1px solid var(--grey);
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+  }
+  .decoded-row .t { color: var(--muted); }
+  .decoded-row .p { color: var(--mint-deep); }
+  .decoded-row .d { color: var(--ink); }
+
+  /* Sequence diagram for demo */
+  .seq {
+    background: var(--paper);
+    border: 1px solid var(--grey);
+    border-radius: 4px;
+    padding: 24px 28px;
+    font-size: 11px;
+    line-height: 1.85;
+  }
+  .seq-row {
+    display: grid;
+    grid-template-columns: 90px 1fr;
+    gap: 24px;
+    align-items: baseline;
+  }
+  .seq-actor {
+    color: var(--mint-deep);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 10px;
+  }
+  .seq-action { color: var(--ink); }
+  .seq-action .muted { color: var(--muted); }
+  .seq-rule {
+    border-top: 1px dashed var(--rule);
+    margin: 14px 0 14px 114px;
+  }
+
+  /* Week calendar */
+  .week {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 12px;
+    margin: 24px 0;
+  }
+  @media (max-width: 900px) { .week { grid-template-columns: repeat(2, 1fr); } }
+  .day {
+    background: var(--paper);
+    border: 1px solid var(--grey);
+    border-radius: 4px;
+    padding: 16px 14px;
+    min-height: 200px;
+    display: flex; flex-direction: column;
+    position: relative;
+  }
+  .day::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--grey);
+  }
+  .day.spine::before { background: var(--mint-deep); }
+  .day-num {
+    font-size: 9px; letter-spacing: 0.16em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .day-title {
+    font-size: 12px; font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--ink);
+  }
+  .day-list {
+    list-style: none;
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .day-list li::before {
+    content: '·';
+    color: var(--mint-deep);
+    margin-right: 8px;
+  }
+
+  /* Cut list */
+  .cut {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin: 20px 0;
+  }
+  @media (max-width: 720px) { .cut { grid-template-columns: 1fr; } }
+  .cut-col {
+    background: var(--paper);
+    border: 1px solid var(--grey);
+    border-radius: 4px;
+    padding: 20px 22px;
+  }
+  .cut-col h4 {
+    font-size: 10px; letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--mint-deep);
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--grey);
+  }
+  .cut-col.out h4 { color: var(--muted); }
+  .cut-col ul { list-style: none; font-size: 11px; line-height: 1.85; }
+  .cut-col ul li::before { content: '·  '; color: var(--mint-deep); }
+  .cut-col.out ul li::before { color: var(--muted); }
+  .cut-col ul li {
+    color: var(--ink);
+  }
+  .cut-col.out ul li { color: var(--muted); }
+
+  /* Stack list */
+  .stack {
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: 12px 32px;
+    font-size: 12px;
+    margin: 16px 0;
+  }
+  .stack dt {
+    color: var(--mint-deep);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding-top: 3px;
+  }
+  .stack dd { color: var(--ink); }
+  .stack dd .muted { color: var(--muted); }
+
+  /* Footer */
+  footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--grey);
+    display: flex; justify-content: space-between;
+    font-size: 10px; letter-spacing: 0.14em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  footer a {
+    color: var(--mint-deep);
+    text-decoration: none;
+  }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <!-- ─── HEAD ─── -->
+  <header class="doc-head">
+    <span class="brand">scry</span>
+    <span class="doc-meta">Scope Document · v0.1 · 2026-05-11</span>
+  </header>
+
+  <!-- ─── HERO ─── -->
+  <section class="hero">
+    <div class="hero-kicker">№ 001 · Workbench</div>
+    <h1 class="hero-pitch">
+      Scry takes a binary and shows you what it would do, <em>without leaving your browser tab.</em>
+    </h1>
+    <div class="hero-foot">
+      <span>Status · Draft</span>
+      <span>Build Window · 7 Days</span>
+      <span>Stack · Rust → WASM + Svelte</span>
+      <span class="swatches">
+        <span class="swatch" style="background:#FAF8F2"></span>
+        <span class="swatch" style="background:#DEDDD7"></span>
+        <span class="swatch" style="background:#A6C9B5"></span>
+        <span class="swatch" style="background:#5E957A"></span>
+        <span class="swatch" style="background:#1F2421"></span>
+      </span>
+    </div>
+  </section>
+
+  <!-- ─── 01 WHAT ─── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <span class="sec-title">What it is.</span>
+      <span class="sec-tag">Premise</span>
+    </div>
+    <div class="prose">
+      <p>Scry is a browser-based systems inspection workbench. You drop a file. It parses it, disassembles it, emulates it, and shows you the bus traffic it would have generated on real hardware. Nothing is uploaded. Nothing is logged. The tab does the work.</p>
+      <p>It pairs with <span class="ink">PEEK</span> in temperament — quiet, observational, restrained — but moves into daylight. Where PEEK is a small creature in the dark, Scry is the bench you watch it on.</p>
+      <p>The point is depth, not breadth. One coherent demo, four modules that earn their place, a clean architecture that admits future modules without a rewrite.</p>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ─── 02 SPINE ─── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <span class="sec-title">The spine.</span>
+      <span class="sec-tag">Demo Flow</span>
+    </div>
+    <div class="prose">
+      <p>One end-to-end flow that the entire week is organized around. If this works, v1 ships. If a module slips, we cut depth, never the spine.</p>
+    </div>
+    <div class="seq">
+      <div class="seq-row"><span class="seq-actor">User</span><span class="seq-action">drops <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">peek-firmware.elf</code> onto the page</span></div>
+      <div class="seq-rule"></div>
+      <div class="seq-row"><span class="seq-actor">Shell</span><span class="seq-action">detects ELF magic <span class="muted">(0x7F 'E' 'L' 'F')</span>, routes to Inspect</span></div>
+      <div class="seq-rule"></div>
+      <div class="seq-row"><span class="seq-actor">Inspect</span><span class="seq-action">parses sections, symbols, segments — renders the metadata grid</span></div>
+      <div class="seq-rule"></div>
+      <div class="seq-row"><span class="seq-actor">User</span><span class="seq-action">clicks <span class="muted">`main`</span> → Disasm opens at that address</span></div>
+      <div class="seq-rule"></div>
+      <div class="seq-row"><span class="seq-actor">Disasm</span><span class="seq-action">renders linear RV32 listing, jump arrows in the gutter, symbols resolved inline</span></div>
+      <div class="seq-rule"></div>
+      <div class="seq-row"><span class="seq-actor">User</span><span class="seq-action">clicks <em style="color:var(--mint-deep);font-style:normal">Emulate from entry</em></span></div>
+      <div class="seq-rule"></div>
+      <div class="seq-row"><span class="seq-actor">Emu</span><span class="seq-action">loads ELF segments, sets PC, runs in a Web Worker</span></div>
+      <div class="seq-rule"></div>
+      <div class="seq-row"><span class="seq-actor">Firmware</span><span class="seq-action">bit-bangs a sequence over an MMIO-mapped SPI controller <span class="muted">(0xF000_0000)</span></span></div>
+      <div class="seq-rule"></div>
+      <div class="seq-row"><span class="seq-actor">Bus</span><span class="seq-action">emulator's memory-write path emits synthetic bus events for the controller region</span></div>
+      <div class="seq-rule"></div>
+      <div class="seq-row"><span class="seq-actor">Trace</span><span class="seq-action">ingests events, renders waveform on Canvas, decodes SPI transactions byte-by-byte</span></div>
+      <div class="seq-rule"></div>
+      <div class="seq-row"><span class="seq-actor">User</span><span class="seq-action">sees <span style="color:var(--mint-deep)">0xA1 · 0xC0 · 0x55</span> with cycle-accurate timing — the firmware speaking, simulated</span></div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ─── 03 WORKBENCH SHELL ─── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <span class="sec-title">The workbench.</span>
+      <span class="sec-tag">App Shell</span>
+    </div>
+    <div class="prose">
+      <p>One frame. Five modules. The active module fills the main panel; the left rail keeps context (what file is open, which architecture, how big). The mint stripe runs across the top of every page. Status lives at the bottom.</p>
+    </div>
+
+    <div class="wf">
+      <div class="app">
+        <div class="app-bar">
+          <span class="app-brand">scry</span>
+          <span class="app-meta">
+            <span>FILE<span class="v">peek-firmware.elf</span></span>
+            <span>ARCH<span class="v">rv32imac</span></span>
+            <span>SIZE<span class="v">42.1 KiB</span></span>
+          </span>
+        </div>
+        <div class="app-tabs">
+          <span class="on">INSPECT</span>
+          <span>HEX</span>
+          <span>DISASM</span>
+          <span>EMU</span>
+          <span>TRACE</span>
+        </div>
+        <div class="app-body">
+          <aside class="app-rail">
+            <div class="rail-row">
+              <span class="l">File</span>
+              <span class="v">peek-firmware.elf</span>
+            </div>
+            <div class="rail-row">
+              <span class="l">Format</span>
+              <span class="v">ELF32 LSB · executable</span>
+            </div>
+            <div class="rail-row">
+              <span class="l">Architecture</span>
+              <span class="v">riscv32 <span class="mint">·</span> rv32imac</span>
+            </div>
+            <div class="rail-row">
+              <span class="l">Entry</span>
+              <span class="v">0x00010000</span>
+            </div>
+            <div class="rail-row">
+              <span class="l">Sections</span>
+              <span class="v">9</span>
+            </div>
+            <div class="rail-row">
+              <span class="l">Symbols</span>
+              <span class="v">47</span>
+            </div>
+          </aside>
+          <main class="app-main">
+            <div class="nrows">
+              <div class="num">
+                <span>01</span><span>02</span><span>03</span><span>04</span><span>05</span>
+              </div>
+              <div class="rows">
+                <div class="row">
+                  <span class="l">Class</span>
+                  <span class="v">ELF32 <span class="bracket">[little-endian]</span></span>
+                </div>
+                <div class="row">
+                  <span class="l">Machine</span>
+                  <span class="v">RISC-V <span class="bracket">[rv32imac]</span></span>
+                </div>
+                <div class="row">
+                  <span class="l">Type</span>
+                  <span class="v">EXEC</span>
+                </div>
+                <div class="row">
+                  <span class="l">Entry</span>
+                  <span class="v">0x00010000 <span class="mint">→ _start</span></span>
+                </div>
+                <div class="row">
+                  <span class="l">Build</span>
+                  <span class="v">riscv32-unknown-elf-gcc 13.2 · -O2 · static</span>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+        <div class="app-foot">
+          <span><span class="dot"></span>READY · LOCAL · NO UPLOAD</span>
+          <span>WORKBENCH v0.1 · BUILT 2026-05-11</span>
+        </div>
+      </div>
+    </div>
+    <p class="wf-caption">Fig. 01 · App shell, Inspect module active</p>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ─── 04 MODULES ─── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <span class="sec-title">The modules.</span>
+      <span class="sec-tag">Five Views</span>
+    </div>
+    <div class="prose">
+      <p>Each module owns one view, one job. They communicate through the shell's file context and a small event channel for cross-module signals (Disasm asking Emu to jump to a PC, Emu pushing bus events to Trace).</p>
+    </div>
+
+    <!-- 04.1 INSPECT -->
+    <div class="subsec-head">
+      <span class="subsec-num">04.1</span>
+      <span class="subsec-title">Inspect — the parse view.</span>
+      <span class="subsec-tag">Rust · goblin</span>
+    </div>
+    <div class="prose">
+      <p>Parses ELF in Rust via <code>goblin</code>, exposes typed structs across the WASM boundary. Renders sections, symbols, segments, and a strings extractor. Every address and every symbol is clickable; click a symbol, Disasm opens there.</p>
+    </div>
+
+    <div class="wf">
+      <div style="padding:18px 22px">
+        <h4 style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-bottom:14px">Sections · 9 entries</h4>
+        <table class="t">
+          <thead><tr>
+            <th class="num">#</th>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Address</th>
+            <th>Offset</th>
+            <th>Size</th>
+            <th>Flags</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="num">00</td><td><span class="muted">(null)</span></td><td>NULL</td><td>0x00000000</td><td>0x0000</td><td>0</td><td><span class="muted">—</span></td></tr>
+            <tr><td class="num">01</td><td>.text</td><td>PROGBITS</td><td>0x00010000</td><td>0x1000</td><td>34844</td><td><span class="mint">AX</span></td></tr>
+            <tr><td class="num">02</td><td>.rodata</td><td>PROGBITS</td><td>0x00018A4C</td><td>0x9A4C</td><td>1748</td><td>A</td></tr>
+            <tr><td class="num">03</td><td>.data</td><td>PROGBITS</td><td>0x00019120</td><td>0xA120</td><td>96</td><td><span class="mint">AW</span></td></tr>
+            <tr><td class="num">04</td><td>.bss</td><td>NOBITS</td><td>0x00020000</td><td>0xA180</td><td>2048</td><td><span class="mint">AW</span></td></tr>
+            <tr><td class="num">05</td><td>.symtab</td><td>SYMTAB</td><td>0x00000000</td><td>0xA180</td><td>752</td><td><span class="muted">—</span></td></tr>
+            <tr><td class="num">06</td><td>.strtab</td><td>STRTAB</td><td>0x00000000</td><td>0xA470</td><td>481</td><td><span class="muted">—</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="padding:6px 22px 18px">
+        <h4 style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin:14px 0">Symbols · 47 entries · showing 4</h4>
+        <table class="t">
+          <thead><tr>
+            <th>Name</th><th>Address</th><th>Size</th><th>Type</th><th>Binding</th><th>Section</th>
+          </tr></thead>
+          <tbody>
+            <tr><td><span class="mint">_start</span></td><td>0x00010000</td><td>32</td><td>FUNC</td><td>GLOBAL</td><td>.text</td></tr>
+            <tr><td><span class="mint">main</span></td><td>0x00010040</td><td>184</td><td>FUNC</td><td>GLOBAL</td><td>.text</td></tr>
+            <tr><td>spi_write_byte</td><td>0x00010120</td><td>96</td><td>FUNC</td><td>LOCAL</td><td>.text</td></tr>
+            <tr><td>oled_init</td><td>0x00010180</td><td>240</td><td>FUNC</td><td>GLOBAL</td><td>.text</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="wf-caption">Fig. 02 · Inspect view — sections and symbols of a parsed ELF</p>
+
+    <!-- 04.2 HEX -->
+    <div class="subsec-head">
+      <span class="subsec-num">04.2</span>
+      <span class="subsec-title">Hex — bytes with meaning.</span>
+      <span class="subsec-tag">Pure JS · Virtualized</span>
+    </div>
+    <div class="prose">
+      <p>A virtualized hex view that handles big files without blinking. Bytes that fall within a known struct (the ELF header in v1) get a tinted overlay; hovering a tinted region surfaces the field name and decoded value.</p>
+    </div>
+
+    <div class="wf">
+      <div class="hex">
+        <div class="hex-row head"><span class="addr">Address</span><span class="bytes">00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F</span><span class="ascii">ASCII</span></div>
+        <div class="hex-row">
+          <span class="addr">0x00000000</span>
+          <span class="bytes"><span class="ovr deep">7F 45 4C 46</span> <span class="ovr">01 01 01 00</span>  <span class="ovr">00 00 00 00 00 00 00 00</span></span>
+          <span class="ascii"><span class="ovr">.ELF....</span><span class="ovr">........</span></span>
+        </div>
+        <div class="hex-row">
+          <span class="addr">0x00000010</span>
+          <span class="bytes"><span class="ovr">02 00</span> <span class="ovr">F3 00</span> <span class="ovr">01 00 00 00</span>  <span class="ovr">00 00 01 00</span> <span class="ovr">34 00 00 00</span></span>
+          <span class="ascii"><span class="ovr">........</span><span class="ovr">....4...</span></span>
+        </div>
+        <div class="hex-row">
+          <span class="addr">0x00000020</span>
+          <span class="bytes"><span class="ovr">A0 A4 00 00</span> <span class="ovr">05 00 00 00</span>  <span class="ovr">34 00 20 00</span> <span class="ovr">02 00 28 00</span></span>
+          <span class="ascii"><span class="ovr">........</span><span class="ovr">4. ...(.</span></span>
+        </div>
+        <div class="hex-row">
+          <span class="addr">0x00000030</span>
+          <span class="bytes"><span class="ovr">09 00</span> <span class="ovr">08 00</span> 01 00 00 00  00 10 00 00 00 00 01 00</span>
+          <span class="ascii"><span class="ovr">....</span>............</span>
+        </div>
+        <div class="hex-row">
+          <span class="addr">0x00000040</span>
+          <span class="bytes">00 10 00 00 00 10 00 00  4C 5A 00 00 4C 5A 00 00</span>
+          <span class="ascii">........LZ..LZ..</span>
+        </div>
+        <div class="hex-row">
+          <span class="addr">0x00000050</span>
+          <span class="bytes">05 00 00 00 00 10 00 00  01 00 00 00 00 50 00 00</span>
+          <span class="ascii">.............P..</span>
+        </div>
+        <div class="overlay-tip">
+          <span class="l">HOVER</span>
+          Field: <strong style="color:var(--ink)">e_machine</strong> · offset 0x12 · u16 LE · value 0xF3 → <span style="color:var(--mint-deep)">EM_RISCV (243)</span>
+        </div>
+      </div>
+    </div>
+    <p class="wf-caption">Fig. 03 · Hex view with ELF header overlay highlighted; hover reveals field meaning</p>
+
+    <!-- 04.3 DISASM -->
+    <div class="subsec-head">
+      <span class="subsec-num">04.3</span>
+      <span class="subsec-title">Disasm — instructions resolved.</span>
+      <span class="subsec-tag">Rust · iced-x86 + RV32</span>
+    </div>
+    <div class="prose">
+      <p>Linear listing with addresses, raw bytes, mnemonic, operands. Jump arrows in the gutter for short forward and backward branches. Symbols resolve inline — a call to <code>spi_write_byte</code> shows the name, not the address. RV32 decoding shares tables with the emulator so the two views always agree on what an instruction does.</p>
+    </div>
+
+    <div class="wf">
+      <div class="disasm">
+        <div class="disasm-label">spi_write_byte:</div>
+        <div class="disasm-row">
+          <span class="gut">·</span>
+          <span class="addr">0x00010120</span>
+          <span class="bytes">13 01 01 FF</span>
+          <span class="insn"><span class="op">addi</span> &nbsp;<span class="arg">sp</span>, <span class="arg">sp</span>, <span class="arg muted">-16</span></span>
+        </div>
+        <div class="disasm-row">
+          <span class="gut">·</span>
+          <span class="addr">0x00010124</span>
+          <span class="bytes">23 26 11 00</span>
+          <span class="insn"><span class="op">sw</span> &nbsp;&nbsp;&nbsp;<span class="arg">ra</span>, <span class="arg muted">12(sp)</span></span>
+        </div>
+        <div class="disasm-row">
+          <span class="gut">┌</span>
+          <span class="addr">0x00010128</span>
+          <span class="bytes">B7 07 00 F0</span>
+          <span class="insn"><span class="op">lui</span> &nbsp;&nbsp;<span class="arg">a5</span>, <span class="arg mint">0xF0000</span> &nbsp;<span class="arg muted">; SPI_BASE</span></span>
+        </div>
+        <div class="disasm-row cur">
+          <span class="gut">│</span>
+          <span class="addr">0x0001012C</span>
+          <span class="bytes">23 A0 A7 00</span>
+          <span class="insn"><span class="op">sw</span> &nbsp;&nbsp;&nbsp;<span class="arg">a0</span>, <span class="arg muted">0(a5)</span> &nbsp;<span class="arg muted">; → SPI_TX_DATA</span></span>
+        </div>
+        <div class="disasm-row">
+          <span class="gut">│</span>
+          <span class="addr">0x00010130</span>
+          <span class="bytes">83 27 47 00</span>
+          <span class="insn"><span class="op">lw</span> &nbsp;&nbsp;&nbsp;<span class="arg">a5</span>, <span class="arg muted">4(a5)</span> &nbsp;<span class="arg muted">; ← SPI_STATUS</span></span>
+        </div>
+        <div class="disasm-row">
+          <span class="gut">└</span>
+          <span class="addr">0x00010134</span>
+          <span class="bytes">E3 8E 07 FE</span>
+          <span class="insn"><span class="op">bne</span> &nbsp;<span class="arg">a5</span>, <span class="arg">x0</span>, <span class="arg mint">0x10128</span></span>
+        </div>
+        <div class="disasm-row">
+          <span class="gut">·</span>
+          <span class="addr">0x00010138</span>
+          <span class="bytes">EF 00 80 00</span>
+          <span class="insn"><span class="op">jal</span> &nbsp;&nbsp;<span class="arg">ra</span>, <span class="arg mint">spi_wait_done</span></span>
+        </div>
+        <div class="disasm-row">
+          <span class="gut">·</span>
+          <span class="addr">0x0001013C</span>
+          <span class="bytes">82 80</span>
+          <span class="insn"><span class="op">ret</span></span>
+        </div>
+      </div>
+    </div>
+    <p class="wf-caption">Fig. 04 · Disasm view — RV32 listing, jump arrows in gutter, MMIO addresses annotated</p>
+
+    <!-- 04.4 EMULATE -->
+    <div class="subsec-head">
+      <span class="subsec-num">04.4</span>
+      <span class="subsec-title">Emulate — the running machine.</span>
+      <span class="subsec-tag">Rust · Hand-written RV32IMA</span>
+    </div>
+    <div class="prose">
+      <p>An RV32IMA interpreter written from scratch — small, portable, ours to point at. Runs the loaded ELF in a Web Worker; the UI gets register and memory snapshots after each step or chunk. ECALL handles <code>write</code>, <code>exit</code>, and our custom <code>scry_bus_emit</code>.</p>
+    </div>
+
+    <div class="wf">
+      <div class="emu">
+        <div class="emu-left">
+          <div class="emu-section">
+            <h4>Registers · cycle 14,832</h4>
+            <div class="regs">
+              <div class="reg"><span class="name">x0 </span><span class="val muted">0x00000000</span></div>
+              <div class="reg"><span class="name">x1 </span><span class="val">0x00010144</span></div>
+              <div class="reg"><span class="name">x2 </span><span class="val">0x0001FF00</span></div>
+              <div class="reg"><span class="name">x3 </span><span class="val">0x00019120</span></div>
+              <div class="reg"><span class="name">x4 </span><span class="val muted">0x00000000</span></div>
+              <div class="reg"><span class="name">x5 </span><span class="val">0x000100A0</span></div>
+              <div class="reg"><span class="name">x6 </span><span class="val">0x000000A1</span></div>
+              <div class="reg"><span class="name">x7 </span><span class="val muted">0x00000000</span></div>
+              <div class="reg"><span class="name">x8 </span><span class="val">0x0001FF10</span></div>
+              <div class="reg"><span class="name">x9 </span><span class="val muted">0x00000000</span></div>
+              <div class="reg"><span class="name">x10</span><span class="val mint">0x000000A1</span></div>
+              <div class="reg"><span class="name">x11</span><span class="val">0x00000003</span></div>
+              <div class="reg"><span class="name">x12</span><span class="val muted">0x00000000</span></div>
+              <div class="reg"><span class="name">x13</span><span class="val muted">0x00000000</span></div>
+              <div class="reg"><span class="name">x14</span><span class="val muted">0x00000000</span></div>
+              <div class="reg"><span class="name">x15</span><span class="val mint">0xF0000000</span></div>
+              <div class="reg"><span class="name">…  </span><span class="val muted">x16..x31</span></div>
+              <div class="reg"><span class="name">pc </span><span class="val mint">0x0001012C</span></div>
+            </div>
+          </div>
+          <div class="emu-section">
+            <h4>Disasm · around PC</h4>
+            <div class="emu-disasm-mini">
+              <div class="r"><span class="a">0x00010128</span><span>lui &nbsp;a5, 0xF0000</span></div>
+              <div class="r cur"><span class="a">0x0001012C</span><span>sw &nbsp;&nbsp;a0, 0(a5)</span></div>
+              <div class="r"><span class="a">0x00010130</span><span>lw &nbsp;&nbsp;a5, 4(a5)</span></div>
+              <div class="r"><span class="a">0x00010134</span><span>bne &nbsp;a5, x0, 0x10128</span></div>
+            </div>
+          </div>
+          <div class="emu-controls">
+            <button class="btn primary">▸ STEP</button>
+            <button class="btn">RUN</button>
+            <button class="btn">PAUSE</button>
+            <button class="btn">RESET</button>
+            <span style="margin-left:auto;font-size:9px;color:var(--muted);letter-spacing:0.12em">CYCLES &nbsp;<span style="color:var(--ink)">14,832</span></span>
+          </div>
+        </div>
+        <div class="emu-section" style="border-bottom:0">
+          <h4>Memory · 0x0001FF00 · stack</h4>
+          <div style="font-size:11px;line-height:1.7">
+            <div class="emu-mem-row"><span class="a">0x0001FF00</span><span>00 00 00 00 &nbsp;44 01 01 00 &nbsp;A1 00 00 00 &nbsp;03 00 00 00</span></div>
+            <div class="emu-mem-row"><span class="a">0x0001FF10</span><span>10 FF 01 00 &nbsp;00 00 00 00 &nbsp;00 00 00 00 &nbsp;00 00 00 00</span></div>
+            <div class="emu-mem-row"><span class="a">0x0001FF20</span><span>00 00 00 00 &nbsp;00 00 00 00 &nbsp;00 00 00 00 &nbsp;00 00 00 00</span></div>
+          </div>
+          <h4 style="margin-top:18px">MMIO · SPI Controller · 0xF0000000</h4>
+          <div style="font-size:11px;line-height:1.7">
+            <div class="emu-mem-row"><span class="a">+0x00 TX</span><span><span style="color:var(--mint-deep)">0xA1</span> &nbsp;<span class="muted">(last write)</span></span></div>
+            <div class="emu-mem-row"><span class="a">+0x04 STAT</span><span>0x00000000 &nbsp;<span class="muted">(idle)</span></span></div>
+            <div class="emu-mem-row"><span class="a">+0x08 CTRL</span><span>0x00000001 &nbsp;<span class="muted">(enable)</span></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="wf-caption">Fig. 05 · Emulator at cycle 14,832 — paused on an MMIO store about to commit a byte to the simulated SPI bus</p>
+
+    <!-- 04.5 TRACE -->
+    <div class="subsec-head">
+      <span class="subsec-num">04.5</span>
+      <span class="subsec-title">Trace — the bus, decoded.</span>
+      <span class="subsec-tag">Pure JS · Canvas + decoders</span>
+    </div>
+    <div class="prose">
+      <p>Ingests either a real <code>.sal</code> capture or synthetic bus events from the emulator. Renders the waveform on Canvas; runs SPI and I²C decoder state machines underneath to surface decoded transactions. Same view, same decoder pipeline, regardless of source.</p>
+    </div>
+
+    <div class="wf">
+      <div class="trace-wave">
+        <h4 style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-bottom:14px">Waveform · 4 channels · 0 → 28 µs</h4>
+        <div class="wave-grid">
+          <span class="wave-label">CLK</span>
+          <svg class="wave-svg" viewBox="0 0 600 36" preserveAspectRatio="none">
+            <polyline points="0,30 30,30 30,6 60,6 60,30 90,30 90,6 120,6 120,30 150,30 150,6 180,6 180,30 210,30 210,6 240,6 240,30 270,30 270,6 300,6 300,30 330,30 330,6 360,6 360,30 390,30 390,6 420,6 420,30 450,30 450,6 480,6 480,30 510,30 510,6 540,6 540,30 570,30 570,6 600,6" fill="none" stroke="#1F2421" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="wave-grid">
+          <span class="wave-label">MOSI</span>
+          <svg class="wave-svg" viewBox="0 0 600 36" preserveAspectRatio="none">
+            <polyline points="0,30 30,30 30,6 90,6 90,30 120,30 120,6 180,6 180,30 240,30 240,6 270,6 270,30 330,30 330,6 360,6 360,30 420,30 420,6 480,6 480,30 540,30 540,6 600,6" fill="none" stroke="#5E957A" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="wave-grid">
+          <span class="wave-label">MISO</span>
+          <svg class="wave-svg" viewBox="0 0 600 36" preserveAspectRatio="none">
+            <polyline points="0,30 600,30" fill="none" stroke="#8A8E87" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="wave-grid">
+          <span class="wave-label">CS</span>
+          <svg class="wave-svg" viewBox="0 0 600 36" preserveAspectRatio="none">
+            <polyline points="0,30 8,30 8,6 580,6 580,30 600,30" fill="none" stroke="#1F2421" stroke-width="1.5"/>
+          </svg>
+        </div>
+      </div>
+      <div class="trace-decoded">
+        <h4 style="font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Decoded · SPI Mode 0 · MSB first</h4>
+        <div class="decoded-row head"><span>Time</span><span>Proto</span><span>Data</span></div>
+        <div class="decoded-row"><span class="t">+0.2 µs</span><span class="p">SPI</span><span class="d">CS↓ &nbsp;<span class="muted">// transaction begin</span></span></div>
+        <div class="decoded-row"><span class="t">+1.1 µs</span><span class="p">SPI</span><span class="d">MOSI &nbsp;<strong>0xA1</strong> &nbsp;<span class="muted">// 1010_0001</span></span></div>
+        <div class="decoded-row"><span class="t">+9.4 µs</span><span class="p">SPI</span><span class="d">MOSI &nbsp;<strong>0xC0</strong> &nbsp;<span class="muted">// 1100_0000</span></span></div>
+        <div class="decoded-row"><span class="t">+17.6 µs</span><span class="p">SPI</span><span class="d">MOSI &nbsp;<strong>0x55</strong> &nbsp;<span class="muted">// 0101_0101</span></span></div>
+        <div class="decoded-row"><span class="t">+25.8 µs</span><span class="p">SPI</span><span class="d">CS↑ &nbsp;<span class="muted">// transaction end · 3 bytes</span></span></div>
+      </div>
+    </div>
+    <p class="wf-caption">Fig. 06 · Trace view — the firmware's SPI writes, simulated, decoded, and timed</p>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ─── 05 WEEK ─── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <span class="sec-title">The week.</span>
+      <span class="sec-tag">Spine-first</span>
+    </div>
+    <div class="prose">
+      <p>Seven days. If a day slips, depth gets cut, never the demo spine. Day 7 is polish and slack; everything before it is structurally load-bearing.</p>
+    </div>
+
+    <div class="week">
+      <div class="day spine">
+        <div class="day-num">DAY 01 · MON</div>
+        <div class="day-title">Foundation</div>
+        <ul class="day-list">
+          <li>Vite + Svelte 5 + TS</li>
+          <li>Rust toolchain, wasm-pack</li>
+          <li>Design tokens, base CSS</li>
+          <li>File intake + routing</li>
+          <li>Header, tabs, status bar</li>
+        </ul>
+      </div>
+      <div class="day spine">
+        <div class="day-num">DAY 02 · TUE</div>
+        <div class="day-title">Hex + Overlays</div>
+        <ul class="day-list">
+          <li>Virtualized scroll</li>
+          <li>16-byte row layout</li>
+          <li>ASCII gutter</li>
+          <li>ELF header overlay</li>
+          <li>Hover field tooltips</li>
+        </ul>
+      </div>
+      <div class="day spine">
+        <div class="day-num">DAY 03 · WED</div>
+        <div class="day-title">Inspect (B-Parse)</div>
+        <ul class="day-list">
+          <li>rust-core crate skeleton</li>
+          <li>wasm-bindgen wired</li>
+          <li>goblin ELF parsing</li>
+          <li>Sections + symbols tables</li>
+          <li>Strings extraction</li>
+        </ul>
+      </div>
+      <div class="day spine">
+        <div class="day-num">DAY 04 · THU</div>
+        <div class="day-title">Disasm (B-Disasm)</div>
+        <ul class="day-list">
+          <li>iced-x86 integration</li>
+          <li>RV32 decoder shared</li>
+          <li>Linear listing render</li>
+          <li>Symbol resolution inline</li>
+          <li>Jump-arrow gutter</li>
+        </ul>
+      </div>
+      <div class="day spine">
+        <div class="day-num">DAY 05 · FRI</div>
+        <div class="day-title">Emulator (C)</div>
+        <ul class="day-list">
+          <li>RV32IMA interpreter</li>
+          <li>Flat memory model</li>
+          <li>ELF segment loader</li>
+          <li>ECALL: write, exit</li>
+          <li>Register + mem panels</li>
+        </ul>
+      </div>
+      <div class="day spine">
+        <div class="day-num">DAY 06 · SAT</div>
+        <div class="day-title">Trace (A) + Bus Bridge</div>
+        <ul class="day-list">
+          <li>.sal zip parsing</li>
+          <li>SPI + I²C decoders</li>
+          <li>Canvas waveform</li>
+          <li>scry_bus_emit syscall</li>
+          <li>Emu → Trace pipeline</li>
+        </ul>
+      </div>
+      <div class="day">
+        <div class="day-num">DAY 07 · SUN</div>
+        <div class="day-title">Polish &amp; Demo</div>
+        <ul class="day-list">
+          <li>Deploy goolz.org/scry</li>
+          <li>README + screenshots</li>
+          <li>Demo firmware artifact</li>
+          <li>Walkthrough recording</li>
+          <li>Slack day for slippage</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ─── 06 IN/OUT ─── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">06</span>
+      <span class="sec-title">In and out.</span>
+      <span class="sec-tag">Cut List</span>
+    </div>
+    <div class="prose">
+      <p>Explicit. Generous on the in-list; merciless on the out-list. If a feature is not below, it is not in v1.</p>
+    </div>
+
+    <div class="cut">
+      <div class="cut-col">
+        <h4>In · v1</h4>
+        <ul>
+          <li>ELF parsing (32 + 64, LE + BE)</li>
+          <li>x86_64 disassembly via iced-x86</li>
+          <li>RV32IMA emulation, interpreter</li>
+          <li>Hand-written ELF struct overlay</li>
+          <li>Virtualized hex viewer (10 MB+ smooth)</li>
+          <li>Saleae .sal capture ingest</li>
+          <li>SPI decoder · I²C decoder</li>
+          <li>Synthetic bus events from emulator</li>
+          <li>Canvas waveform render</li>
+          <li>Symbol resolution in Disasm</li>
+          <li>Jump arrows · linear listing</li>
+          <li>Web Worker isolation for emu run</li>
+          <li>Hash routing · static-host friendly</li>
+          <li>Drop-target file intake</li>
+          <li>Status bar · file context rail</li>
+        </ul>
+      </div>
+      <div class="cut-col out">
+        <h4>Out · deferred</h4>
+        <ul>
+          <li>Mach-O parsing</li>
+          <li>PE parsing</li>
+          <li>ARM64 / AArch64 disassembly</li>
+          <li>DWARF debug info</li>
+          <li>Decompiler · CFG view · xref panel</li>
+          <li>Schema-language UI (Kaitai-style)</li>
+          <li>User-defined struct overlays</li>
+          <li>RV32 C / F / D extensions</li>
+          <li>MMU · virtual memory</li>
+          <li>Full Linux syscall layer</li>
+          <li>UART · CAN · 1-Wire decoders</li>
+          <li>CSV · PulseView .sr capture formats</li>
+          <li>Search · diff view · multi-file</li>
+          <li>Dark mode</li>
+          <li>Telemetry · login · sync</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ─── 07 STACK ─── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">07</span>
+      <span class="sec-title">The stack.</span>
+      <span class="sec-tag">Locked</span>
+    </div>
+    <dl class="stack">
+      <dt>Build</dt>
+      <dd>Vite 6 · TypeScript 5</dd>
+
+      <dt>UI</dt>
+      <dd>Svelte 5 <span class="muted">(runes; smallest bundle, no virtual-DOM tax on hex scroll)</span></dd>
+
+      <dt>Rust toolchain</dt>
+      <dd>wasm-pack · wasm-bindgen · serde-wasm-bindgen</dd>
+
+      <dt>Rust crates</dt>
+      <dd>goblin <span class="muted">(ELF)</span> · iced-x86 <span class="muted">(x86_64 disasm)</span> · serde · thiserror</dd>
+
+      <dt>RV32 emulator</dt>
+      <dd>Hand-written <span class="muted">(no crate; the code is portfolio material)</span></dd>
+
+      <dt>Zip parsing</dt>
+      <dd>fflate <span class="muted">(for .sal ingest)</span></dd>
+
+      <dt>Canvas</dt>
+      <dd>Native 2D context <span class="muted">(no charting library)</span></dd>
+
+      <dt>Hosting</dt>
+      <dd>Cloudflare Pages · existing goolz project · subpath /scry/</dd>
+
+      <dt>Source</dt>
+      <dd>github.com/melonmelonz/scry <span class="muted">(new)</span></dd>
+
+      <dt>Tests</dt>
+      <dd>Rust unit tests for parsers + emulator core · no JS test suite in v1</dd>
+    </dl>
+  </section>
+
+  <footer>
+    <span>SCRY · SCOPE · v0.1 · 2026-05-11</span>
+    <span><a href="https://github.com/melonmelonz/scry">github.com/melonmelonz/scry</a></span>
+  </footer>
+
+</main>
+</body>
+</html>
