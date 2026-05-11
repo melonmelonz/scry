@@ -1,0 +1,22 @@
+[
+  {
+    "file": "demo-fib10.elf",
+    "desc": "Fibonacci(10) -> a2 = 55",
+    "insns": 11
+  },
+  {
+    "file": "demo-spi-jedec.elf",
+    "desc": "SPI JEDEC ID read (4 bytes)",
+    "insns": 14
+  },
+  {
+    "file": "demo-i2c-scan.elf",
+    "desc": "I2C bus scan 0x08..0x10",
+    "insns": 14
+  },
+  {
+    "file": "demo-memcpy.elf",
+    "desc": "Memcpy 16 bytes (no MMIO traffic)",
+    "insns": 11
+  }
+]

@@ -27,7 +27,7 @@ fi
 
 git add scry/
 # ASCII-only commit message (CF Pages wrangler-action fails on unicode).
-git commit -m "scry: deploy phase 1 - app shell + hex viewer ($(date +%Y-%m-%d-%H%M))"
+git commit -m "scry: deploy v1 workbench - inspect/hex/disasm/emu/trace ($(date +%Y-%m-%d-%H%M))"
 git push
 
 echo "[scry] deployed. cloudflare pages will pick it up shortly."

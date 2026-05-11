@@ -20,6 +20,12 @@ export function createFileRail() {
   host.className = 's-rail';
 
   function render(state) {
+    if (state.loading) {
+      replaceChildren(host, [
+        railRow('Loading', state.status || 'reading\u2026')
+      ]);
+      return;
+    }
     if (state.bytes) {
       const kind = detectFormat(state.bytes);
       replaceChildren(host, [
@@ -28,7 +34,7 @@ export function createFileRail() {
         railRow('Format', formatLabel(kind))
       ]);
     } else {
-      const dot = el('span', { class: 'mint', text: '·' });
+      const dot = el('span', { class: 'mint', text: '\u00B7' });
       const v = el('span', { class: 'v' }, [dot, ' drop or pick to begin']);
       const row = el('div', { class: 'row' }, [
         el('span', { class: 'l', text: 'No file loaded' }),

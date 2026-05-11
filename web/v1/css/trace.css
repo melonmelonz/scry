@@ -60,7 +60,7 @@
 }
 
 .t-list {
-  overflow-y: auto;
+  overflow: auto;
   min-height: 0;
   border: 1px solid var(--grey);
   background: var(--paper);

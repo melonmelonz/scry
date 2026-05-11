@@ -43,3 +43,49 @@
   font-family: inherit;
 }
 .s-empty button.pick:hover { background: var(--mint-pale); }
+.s-empty button.pick.demo { margin-left: 8px; }
+
+.s-empty .samples {
+  margin-top: 36px;
+  border-top: 1px solid var(--rule);
+  padding-top: 20px;
+}
+.s-empty .samples-label {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.s-empty .samples-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+.s-empty button.sample {
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 5px 10px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: var(--r-1);
+  cursor: pointer;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.s-empty button.sample:hover {
+  border-color: var(--mint-deep);
+  background: var(--mint-pale);
+}
+.s-empty .samples-note {
+  margin-top: 14px;
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  font-style: italic;
+  line-height: 1.6;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+}
