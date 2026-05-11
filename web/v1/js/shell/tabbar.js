@@ -1,12 +1,23 @@
 import { router } from '../stores/router.js';
 import { fileStore } from '../stores/file.js';
+import { detectFormat } from '../format/detect.js';
 
+function hasFile() {
+  return fileStore.get().bytes !== null;
+}
+
+function isELF() {
+  const b = fileStore.get().bytes;
+  return b !== null && detectFormat(b) === 'elf';
+}
+
+// Phase 1 (v1) — each tab decides its own availability via the `enabled` fn.
 const TABS = [
-  { id: 'inspect', label: 'INSPECT', needsFile: true,  available: false },
-  { id: 'hex',     label: 'HEX',     needsFile: true,  available: true  },
-  { id: 'disasm',  label: 'DISASM',  needsFile: true,  available: false },
-  { id: 'emu',     label: 'EMU',     needsFile: true,  available: false },
-  { id: 'trace',   label: 'TRACE',   needsFile: false, available: false }
+  { id: 'inspect', label: 'INSPECT', enabled: () => isELF() },
+  { id: 'hex',     label: 'HEX',     enabled: () => hasFile() },
+  { id: 'disasm',  label: 'DISASM',  enabled: () => false },
+  { id: 'emu',     label: 'EMU',     enabled: () => false },
+  { id: 'trace',   label: 'TRACE',   enabled: () => false }
 ];
 
 export function createTabBar() {
@@ -24,11 +35,10 @@ export function createTabBar() {
 
   function refresh() {
     const route = router.route;
-    const hasFile = fileStore.get().bytes !== null;
     for (const t of TABS) {
       const btn = buttons.get(t.id);
       btn.classList.toggle('on', route === t.id);
-      btn.disabled = !t.available || (t.needsFile && !hasFile);
+      btn.disabled = !t.enabled();
     }
   }
 

@@ -1,17 +1,31 @@
 #!/usr/bin/env bash
-# Phase 1: no build step. The web/ directory is the deployable.
-# This script stages web/ into web/dist/ so deploy.sh has a stable target,
-# and phase 2 can plug a real bundler in here without changing deploy.
+# No build step (yet). Stages source directories into web/dist/.
+# Phase 2 will plug a Rust/wasm-pack/Vite pipeline in here for v2.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-echo "[scry] staging web/ -> web/dist/ ..."
+echo "[scry] staging -> web/dist/ ..."
 rm -rf "$ROOT/web/dist"
 mkdir -p "$ROOT/web/dist"
 
-# Copy every file under web/ except the dist directory itself.
-rsync -a --exclude='dist/' --exclude='node_modules/' "$ROOT/web/" "$ROOT/web/dist/"
+# Landing page at the root.
+cp "$ROOT/web/index.html" "$ROOT/web/dist/index.html"
 
-echo "[scry] staged. files:"
-find "$ROOT/web/dist" -type f -printf '  %P\n'
+# Also expose the scope page at the root.
+if [ -f "$ROOT/docs/scope.html" ]; then
+  cp "$ROOT/docs/scope.html" "$ROOT/web/dist/scope.html"
+fi
+
+# v1 — pure JS/CSS/HTML.
+if [ -d "$ROOT/web/v1" ]; then
+  rsync -a "$ROOT/web/v1/" "$ROOT/web/dist/v1/"
+fi
+
+# v2 — placeholder until Rust→WASM pipeline lands.
+if [ -d "$ROOT/web/v2" ]; then
+  rsync -a "$ROOT/web/v2/" "$ROOT/web/dist/v2/"
+fi
+
+echo "[scry] staged:"
+find "$ROOT/web/dist" -type f -printf '  %P\n' | sort

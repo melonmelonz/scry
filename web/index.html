@@ -3,19 +3,219 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Scry — Workbench</title>
+<title>Scry — choose a version</title>
 <meta name="description" content="Scry takes a binary and shows you what it would do, without leaving your browser tab.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/tokens.css">
-<link rel="stylesheet" href="css/base.css">
-<link rel="stylesheet" href="css/components.css">
-<link rel="stylesheet" href="css/empty.css">
-<link rel="stylesheet" href="css/hex.css">
+<style>
+:root {
+  --bg:        #F2F1EC;
+  --paper:     #FAF8F2;
+  --grey:      #DEDDD7;
+  --rule:      #C7C5BF;
+  --ink:       #1F2421;
+  --muted:     #8A8E87;
+  --mint:      #A6C9B5;
+  --mint-deep: #5E957A;
+  --mint-pale: #E2EEE7;
+  --mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; }
+body {
+  font-family: var(--mono);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  padding: 56px 32px 80px;
+}
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--mint-deep);
+  z-index: 100;
+  pointer-events: none;
+}
+.frame { max-width: 920px; margin: 0 auto; }
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 14px;
+  margin-bottom: 40px;
+}
+.brand { font-weight: 600; font-size: 13px; letter-spacing: 0.04em; }
+.brand::before { content: '◆ '; color: var(--mint-deep); font-size: 11px; }
+.meta {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.pitch {
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  margin-bottom: 8px;
+  max-width: 720px;
+}
+.sub {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  margin-bottom: 56px;
+  max-width: 640px;
+}
+.versions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 56px;
+}
+@media (max-width: 720px) {
+  .versions { grid-template-columns: 1fr; }
+}
+.card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 28px 26px 24px;
+  transition: border-color 200ms ease, background 200ms ease, transform 200ms ease;
+}
+.card:hover {
+  border-color: var(--mint-deep);
+  background: var(--mint-pale);
+}
+.card.disabled {
+  opacity: 0.55;
+  pointer-events: none;
+  background: var(--bg);
+}
+.card .tag {
+  display: inline-block;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mint-deep);
+  margin-bottom: 14px;
+}
+.card .tag.muted { color: var(--muted); }
+.card h2 {
+  font-size: 18px;
+  font-weight: 500;
+  margin-bottom: 10px;
+  letter-spacing: -0.01em;
+}
+.card p {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 18px;
+  letter-spacing: 0.02em;
+}
+.card .stack {
+  font-size: 10px;
+  color: var(--ink);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.card .stack .v { color: var(--mint-deep); margin-left: 6px; }
+.card .cta {
+  margin-top: 20px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mint-deep);
+}
+.card.disabled .cta { color: var(--muted); }
+.row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 16px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--grey);
+  font-size: 11px;
+}
+.row:last-child { border-bottom: 0; }
+.row .l {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.row .v { color: var(--ink); }
+.row .v a { color: var(--mint-deep); }
+.row .v a:hover { text-decoration: underline; }
+footer {
+  margin-top: 56px;
+  padding-top: 22px;
+  border-top: 1px solid var(--grey);
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+</style>
 </head>
 <body>
-<div id="app"></div>
-<script type="module" src="js/main.js"></script>
+<div class="frame">
+  <header>
+    <span class="brand">scry</span>
+    <span class="meta">workbench · v0.1</span>
+  </header>
+
+  <p class="pitch">Scry takes a binary and shows you what it would do, without leaving your browser tab.</p>
+  <p class="sub">Drop a file. See it parsed, disassembled, emulated, decoded — all client-side. No backend, no upload, no login.</p>
+
+  <div class="versions">
+    <a class="card" href="v1/">
+      <span class="tag">[ V1 · PURE ]</span>
+      <h2>Hand-rolled in pure JS</h2>
+      <p>The whole workbench built without frameworks, bundlers, or libraries. Every primitive is in the repo — virtualization, parsing, decoders.</p>
+      <div class="stack">RUNTIME<span class="v">VANILLA · ES MODULES</span></div>
+      <div class="stack">PARSING<span class="v">HAND-ROLLED ELF</span></div>
+      <div class="stack">DISASM<span class="v">RV32IMA (HAND-DECODED)</span></div>
+      <div class="cta">Launch v1 →</div>
+    </a>
+
+    <a class="card disabled" href="#">
+      <span class="tag muted">[ V2 · FULL ]</span>
+      <h2>Full-blown Rust → WASM</h2>
+      <p>The ambitious build: Rust core via wasm-bindgen, Svelte 5 shell, Vite, full x86_64 + RV32 disassembly, .sal capture parsing.</p>
+      <div class="stack">RUNTIME<span class="v">SVELTE 5 · VITE</span></div>
+      <div class="stack">PARSING<span class="v">GOBLIN (RUST)</span></div>
+      <div class="stack">DISASM<span class="v">ICED-X86 + RV32</span></div>
+      <div class="cta">Coming soon</div>
+    </a>
+  </div>
+
+  <div class="row">
+    <span class="l">Source</span>
+    <span class="v"><a href="https://github.com/melonmelonz/scry">github.com/melonmelonz/scry</a></span>
+  </div>
+  <div class="row">
+    <span class="l">Scope</span>
+    <span class="v"><a href="scope.html">Read the project scope and wireframes</a></span>
+  </div>
+  <div class="row">
+    <span class="l">Author</span>
+    <span class="v">Penn Porterfield · grad-school portfolio</span>
+  </div>
+
+  <footer>
+    <span>LOCAL · NO UPLOAD · NO LOGIN</span>
+    <span>2026</span>
+  </footer>
+</div>
 </body>
 </html>

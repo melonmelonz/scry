@@ -4,8 +4,10 @@ import { createFileRail } from './shell/filerail.js';
 import { createStatusBar } from './shell/statusbar.js';
 import { createEmpty } from './modules/empty.js';
 import { createHex } from './modules/hex.js';
+import { createInspect } from './modules/inspect.js';
 import { fileStore } from './stores/file.js';
 import { router } from './stores/router.js';
+import { detectFormat } from './format/detect.js';
 
 function mount() {
   const root = document.getElementById('app');
@@ -32,33 +34,43 @@ function mount() {
 
   root.appendChild(app);
 
-  // Module mount table. Each entry is { route -> factory }. Modules are lazily
-  // created the first time their route is visited, then reused (kept in DOM
-  // but display:none when inactive).
+  // Lazily-built module elements.
   const factories = {
-    empty: createEmpty,
-    hex:   createHex
+    empty:   createEmpty,
+    hex:     createHex,
+    inspect: createInspect
   };
-  const mounted = {}; // route -> element
+  const mounted = {};
+
+  function defaultRouteForFile() {
+    const bytes = fileStore.get().bytes;
+    if (!bytes) return 'empty';
+    // ELF lands on inspect; everything else on hex.
+    return detectFormat(bytes) === 'elf' ? 'inspect' : 'hex';
+  }
 
   function showRoute(route) {
-    // Auto-redirect: when a file lands, leave 'empty'; when it clears, return.
     const hasFile = fileStore.get().bytes !== null;
     let target = route;
-    if (hasFile && target === 'empty') target = 'hex';
+
+    // Auto-redirects.
     if (!hasFile && target !== 'empty') target = 'empty';
+    if (hasFile && target === 'empty') target = defaultRouteForFile();
+
+    // Re-gate against disabled routes (e.g. inspect when format isn't ELF).
+    if (hasFile && target === 'inspect' && detectFormat(fileStore.get().bytes) !== 'elf') {
+      target = 'hex';
+    }
+
     if (target !== route) {
-      // navigate, which will re-fire this subscriber.
       router.go(target);
       return;
     }
 
-    // Lazy-mount.
     if (!mounted[target] && factories[target]) {
       mounted[target] = factories[target]();
       main.appendChild(mounted[target]);
     }
-    // Toggle visibility.
     for (const k of Object.keys(mounted)) {
       mounted[k].style.display = (k === target) ? '' : 'none';
     }
