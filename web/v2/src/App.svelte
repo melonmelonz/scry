@@ -12,6 +12,25 @@
   let view   = $state('inspect'); // 'inspect' | 'hex'
   let theme  = $state(currentTheme());
 
+  // When the unified shell iframes us with ?embed=1, hide our own brand +
+  // theme toggle + back link; the parent provides those.
+  const embedded = typeof location !== 'undefined' && /[?&]embed=1\b/.test(location.search);
+
+  // Accept theme pushes from the parent shell so a toggle outside the
+  // iframe lands instantly without a reload.
+  $effect(() => {
+    function onmsg(ev) {
+      if (ev.origin !== location.origin) return;
+      const m = ev.data;
+      if (m && m.type === 'scry-theme' && (m.value === 'light' || m.value === 'dark')) {
+        document.documentElement.setAttribute('data-theme', m.value);
+        theme = m.value;
+      }
+    }
+    window.addEventListener('message', onmsg);
+    return () => window.removeEventListener('message', onmsg);
+  });
+
   async function onfile({ name, bytes }) {
     file = { name, bytes };
     error = '';
@@ -37,17 +56,21 @@
 
 <div class="shell">
   <header class="hd">
-    <span class="brand">scry / v2</span>
+    {#if !embedded}
+      <span class="brand">scry / v2</span>
+    {/if}
     <span class="sub">rust → wasm · svelte 5</span>
     <span class="spacer"></span>
     {#if file}
       <span class="file">{file.name} · {file.bytes.length.toLocaleString()} B · {format ?? '…'}</span>
       <button onclick={reset}>Close</button>
     {/if}
-    <button class="theme" onclick={doToggle} aria-label="Toggle theme">
-      {theme === 'dark' ? '\u263C' : '\u263E'}
-    </button>
-    <a class="back" href="/">↩ scry root</a>
+    {#if !embedded}
+      <button class="theme" onclick={doToggle} aria-label="Toggle theme">
+        {theme === 'dark' ? '\u263C' : '\u263E'}
+      </button>
+      <a class="back" href="/">↩ scry root</a>
+    {/if}
   </header>
 
   {#if !file}

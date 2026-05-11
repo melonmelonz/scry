@@ -27,6 +27,19 @@
       document.documentElement.setAttribute('data-theme', t);
     }
   } catch (e) { /* storage blocked — fall back to system pref */ }
+  // Tag the document when embedded inside the unified shell so it can hide
+  // its own brand + theme toggle (the parent provides both).
+  if (/[?&]embed=1\b/.test(location.search)) {
+    document.documentElement.setAttribute('data-embedded', '1');
+  }
+  // Accept theme updates pushed by the parent shell.
+  window.addEventListener('message', function (ev) {
+    if (ev.origin !== location.origin) return;
+    var m = ev.data;
+    if (m && m.type === 'scry-theme' && (m.value === 'light' || m.value === 'dark')) {
+      document.documentElement.setAttribute('data-theme', m.value);
+    }
+  });
 </script>
 </head>
 <body>

@@ -59,6 +59,16 @@
   background: var(--mint-pale);
 }
 
+/* Inside the unified shell iframe the parent already shows the brand and
+   theme toggle. Hide ours and tighten the header so it carries only the
+   per-file meta. */
+:root[data-embedded] .s-brand,
+:root[data-embedded] .s-theme { display: none; }
+:root[data-embedded] .s-header {
+  padding: 10px 18px 8px;
+  justify-content: flex-end;
+}
+
 /* ─── Tab bar ──────────────────────────────── */
 .s-tabs { display: flex; border-bottom: var(--r-thin); }
 .s-tabs button {

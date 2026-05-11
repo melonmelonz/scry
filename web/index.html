@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Scry — choose a version</title>
+<title>scry — binary workbench</title>
 <meta name="description" content="Scry takes a binary and shows you what it would do, without leaving your browser tab.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -49,7 +49,7 @@
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { min-height: 100%; }
+html, body { height: 100%; }
 body {
   font-family: var(--mono);
   background: var(--bg);
@@ -57,7 +57,8 @@ body {
   font-size: 12px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
-  padding: 56px 32px 80px;
+  display: flex;
+  flex-direction: column;
 }
 body::before {
   content: '';
@@ -68,172 +69,60 @@ body::before {
   z-index: 100;
   pointer-events: none;
 }
-.frame { max-width: 920px; margin: 0 auto; }
-header {
+
+/* Top chrome ----------------------------------------------------------- */
+.chrome {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 22px;
   border-bottom: 1px solid var(--ink);
-  padding-bottom: 14px;
-  margin-bottom: 40px;
-}
-.brand { font-weight: 600; font-size: 13px; letter-spacing: 0.04em; }
-.brand::before { content: '◆ '; color: var(--mint-deep); font-size: 11px; }
-.meta {
-  color: var(--muted);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-.pitch {
-  font-size: 22px;
-  font-weight: 400;
-  letter-spacing: -0.01em;
-  margin-bottom: 8px;
-  max-width: 720px;
-}
-.sub {
-  color: var(--muted);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  margin-bottom: 56px;
-  max-width: 640px;
-}
-.versions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-bottom: 56px;
-}
-@media (max-width: 720px) {
-  .versions { grid-template-columns: 1fr; }
-}
-.card {
-  display: block;
-  text-decoration: none;
-  color: inherit;
-  background: var(--paper);
-  border: 1px solid var(--rule);
-  padding: 28px 26px 24px;
-  transition: border-color 200ms ease, background 200ms ease, transform 200ms ease;
-}
-.card:hover {
-  border-color: var(--mint-deep);
-  background: var(--mint-pale);
-}
-.card.disabled {
-  opacity: 0.55;
-  pointer-events: none;
   background: var(--bg);
 }
-.card .tag {
-  display: inline-block;
+.brand { font-weight: 600; font-size: 13px; letter-spacing: 0.04em; }
+.brand::before { content: '\25C6 '; color: var(--mint-deep); font-size: 11px; }
+.tag {
   font-size: 9px;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--mint-deep);
-  margin-bottom: 14px;
-}
-.card .tag.muted { color: var(--muted); }
-.card h2 {
-  font-size: 18px;
-  font-weight: 500;
-  margin-bottom: 10px;
-  letter-spacing: -0.01em;
-}
-.card p {
-  font-size: 11px;
   color: var(--muted);
-  margin-bottom: 18px;
-  letter-spacing: 0.02em;
 }
-.card .stack {
+.spacer { flex: 1; }
+
+.modes { display: flex; gap: 6px; }
+.mode {
+  font-family: inherit;
   font-size: 10px;
-  color: var(--ink);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  margin-bottom: 6px;
-}
-.card .stack .v { color: var(--mint-deep); margin-left: 6px; }
-.card .cta {
-  margin-top: 20px;
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--mint-deep);
-}
-.card.disabled .cta { color: var(--muted); }
-.scope-dock {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 24px;
+  color: var(--muted);
   background: var(--paper);
   border: 1px solid var(--rule);
-  border-left: 3px solid var(--mint-deep);
-  padding: 20px 24px;
-  margin-bottom: 56px;
-  text-decoration: none;
-  color: inherit;
-  transition: border-color 200ms ease, background 200ms ease;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
 }
-.scope-dock:hover {
+.mode:hover { color: var(--ink); border-color: var(--mint-deep); }
+.mode.on {
+  color: var(--mint-deep);
   border-color: var(--mint-deep);
   background: var(--mint-pale);
 }
-.scope-dock .left { display: flex; flex-direction: column; gap: 4px; }
-.scope-dock .tag {
-  font-size: 9px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--mint-deep);
-}
-.scope-dock h3 {
-  font-size: 14px;
-  font-weight: 500;
-  letter-spacing: -0.005em;
-}
-.scope-dock p {
-  font-size: 11px;
-  color: var(--muted);
-  margin-top: 2px;
-}
-.scope-dock .cta {
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--mint-deep);
-  white-space: nowrap;
-}
-.row {
-  display: grid;
-  grid-template-columns: 110px 1fr;
-  gap: 16px;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--grey);
-  font-size: 11px;
-}
-.row:last-child { border-bottom: 0; }
-.row .l {
+.mode .sub { color: var(--muted); margin-left: 6px; letter-spacing: 0.06em; }
+.mode.on .sub { color: var(--mint-deep); }
+
+.scope-link {
   font-size: 9px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--mint-deep);
+  text-decoration: none;
+  border: 1px solid var(--rule);
+  padding: 5px 10px;
+  transition: border-color 120ms ease, background 120ms ease;
 }
-.row .v { color: var(--ink); }
-.row .v a { color: var(--mint-deep); }
-.row .v a:hover { text-decoration: underline; }
-footer {
-  margin-top: 56px;
-  padding-top: 22px;
-  border-top: 1px solid var(--grey);
-  display: flex;
-  justify-content: space-between;
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
+.scope-link:hover { border-color: var(--mint-deep); background: var(--mint-pale); }
+
 .theme-toggle {
   font-family: inherit;
   font-size: 13px;
@@ -242,112 +131,174 @@ footer {
   background: transparent;
   border: 1px solid var(--rule);
   width: 28px;
-  height: 24px;
+  height: 26px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
   padding: 0;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
 }
 .theme-toggle:hover {
   color: var(--ink);
   border-color: var(--mint-deep);
   background: var(--mint-pale);
 }
+
+/* Frame area ----------------------------------------------------------- */
+.frame {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+iframe.surface {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background: var(--bg);
+}
+
+/* Footer --------------------------------------------------------------- */
+.foot {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 22px;
+  border-top: 1px solid var(--grey);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--bg);
+}
+.foot a { color: var(--muted); text-decoration: none; }
+.foot a:hover { color: var(--mint-deep); }
 </style>
 <script>
+  // Pre-paint theme so the chrome and the iframe agree on a palette
+  // before the first frame.
   try {
     var t = localStorage.getItem('scry-theme');
-    if (t === 'light' || t === 'dark') {
-      document.documentElement.setAttribute('data-theme', t);
-    }
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
   } catch (e) {}
 </script>
 </head>
 <body>
-<div class="frame">
-  <header>
-    <span class="brand">scry</span>
-    <span style="display:inline-flex;align-items:center;gap:16px;">
-      <span class="meta">workbench · v0.1</span>
-      <button class="theme-toggle" type="button" aria-label="Toggle dark mode" id="theme-toggle">&#x263E;</button>
-    </span>
-  </header>
 
-  <p class="pitch">Scry takes a binary and shows you what it would do, without leaving your browser tab.</p>
-  <p class="sub">Drop a file. See it parsed, disassembled, emulated, decoded — all client-side. No backend, no upload, no login.</p>
+<header class="chrome">
+  <span class="brand">scry</span>
+  <span class="tag">binary workbench &middot; v0.1</span>
 
-  <div class="versions">
-    <a class="card" href="v1/">
-      <span class="tag">[ V1 · PURE ]</span>
-      <h2>Hand-rolled in pure JS</h2>
-      <p>The whole workbench built without frameworks, bundlers, or libraries. Every primitive is in the repo — virtualization, parsing, decoders.</p>
-      <div class="stack">RUNTIME<span class="v">VANILLA · ES MODULES</span></div>
-      <div class="stack">PARSING<span class="v">HAND-ROLLED ELF</span></div>
-      <div class="stack">DISASM<span class="v">RV32IMA (HAND-DECODED)</span></div>
-      <div class="cta">Launch v1 →</div>
-    </a>
+  <span class="spacer"></span>
 
-    <a class="card" href="v2/">
-      <span class="tag">[ V2 · FULL ]</span>
-      <h2>Full-blown Rust → WASM</h2>
-      <p>The ambitious build: Rust core via wasm-bindgen, Svelte 5 shell, Vite. ELF inspect + hex live today; disassembly &amp; .sal capture parsing land next.</p>
-      <div class="stack">RUNTIME<span class="v">SVELTE 5 · VITE</span></div>
-      <div class="stack">PARSING<span class="v">GOBLIN (RUST)</span></div>
-      <div class="stack">DISASM<span class="v">RV32 (PLANNED)</span></div>
-      <div class="cta">Launch v2 →</div>
-    </a>
+  <div class="modes" role="tablist" aria-label="Engine">
+    <button class="mode" id="mode-v1" role="tab" aria-controls="surface" type="button">
+      V1<span class="sub">PURE</span>
+    </button>
+    <button class="mode" id="mode-v2" role="tab" aria-controls="surface" type="button">
+      V2<span class="sub">RUST&middot;WASM</span>
+    </button>
   </div>
 
-  <a class="scope-dock" href="scope.html">
-    <span class="left">
-      <span class="tag">[ SCOPE &middot; WIREFRAMES ]</span>
-      <h3>Read the project scope</h3>
-      <p>What scry is, why it exists, what's in v1 vs v2, and the wireframes behind every module.</p>
-    </span>
-    <span class="cta">Open scope &rarr;</span>
-  </a>
+  <a class="scope-link" href="scope.html">Scope &amp; wireframes &rarr;</a>
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">&#x263E;</button>
+</header>
 
-  <div class="row">
-    <span class="l">Source</span>
-    <span class="v"><a href="https://github.com/melonmelonz/scry">github.com/melonmelonz/scry</a></span>
-  </div>
-  <div class="row">
-    <span class="l">Author</span>
-    <span class="v">Penn Porterfield &middot; grad-school portfolio</span>
-  </div>
+<main class="frame">
+  <iframe class="surface" id="surface" title="scry workbench"></iframe>
+</main>
 
-  <footer>
-    <span>LOCAL · NO UPLOAD · NO LOGIN</span>
-    <span>2026</span>
-  </footer>
-</div>
+<footer class="foot">
+  <span>LOCAL &middot; NO UPLOAD &middot; NO LOGIN</span>
+  <span><a href="https://github.com/melonmelonz/scry">github.com/melonmelonz/scry</a></span>
+  <span>2026</span>
+</footer>
+
 <script>
-  (function () {
-    var btn = document.getElementById('theme-toggle');
-    if (!btn) return;
-    var mq = window.matchMedia('(prefers-color-scheme: dark)');
-    function current() {
-      var a = document.documentElement.getAttribute('data-theme');
-      if (a === 'light' || a === 'dark') return a;
-      return mq.matches ? 'dark' : 'light';
+(function () {
+  var KEY     = 'scry-theme';
+  var MODEKEY = 'scry-mode';
+  var iframe  = document.getElementById('surface');
+  var btnV1   = document.getElementById('mode-v1');
+  var btnV2   = document.getElementById('mode-v2');
+  var btnT    = document.getElementById('theme-toggle');
+  var mq      = window.matchMedia('(prefers-color-scheme: dark)');
+
+  // --- mode ---------------------------------------------------------
+  // URL hash wins, then localStorage, then default.
+  function readMode() {
+    var h = (location.hash || '').replace(/^#/, '');
+    if (h === 'v1' || h === 'v2') return h;
+    var s = null;
+    try { s = localStorage.getItem(MODEKEY); } catch (e) {}
+    if (s === 'v1' || s === 'v2') return s;
+    return 'v2';
+  }
+
+  function setMode(m) {
+    if (m !== 'v1' && m !== 'v2') return;
+    try { localStorage.setItem(MODEKEY, m); } catch (e) {}
+    if (location.hash !== '#' + m) {
+      history.replaceState(null, '', '#' + m);
     }
-    function render() {
-      btn.textContent = current() === 'dark' ? '\u263C' : '\u263E';
-      btn.title = current() === 'dark' ? 'Switch to light' : 'Switch to dark';
+    btnV1.classList.toggle('on', m === 'v1');
+    btnV2.classList.toggle('on', m === 'v2');
+    // ?embed=1 lets v1/v2 hide their own brand + theme toggle so we don't
+    // get double chrome.
+    var target = m + '/?embed=1';
+    if (iframe.getAttribute('data-mode') !== m) {
+      iframe.setAttribute('data-mode', m);
+      iframe.src = target;
     }
-    btn.addEventListener('click', function () {
-      var next = current() === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
-      try { localStorage.setItem('scry-theme', next); } catch (e) {}
-      render();
-    });
-    mq.addEventListener('change', function () {
-      if (!document.documentElement.hasAttribute('data-theme')) render();
-    });
-    render();
-  })();
+  }
+
+  btnV1.addEventListener('click', function () { setMode('v1'); });
+  btnV2.addEventListener('click', function () { setMode('v2'); });
+  window.addEventListener('hashchange', function () { setMode(readMode()); });
+
+  // --- theme --------------------------------------------------------
+  function currentTheme() {
+    var a = document.documentElement.getAttribute('data-theme');
+    if (a === 'light' || a === 'dark') return a;
+    return mq.matches ? 'dark' : 'light';
+  }
+  function renderToggle() {
+    var t = currentTheme();
+    btnT.textContent = t === 'dark' ? '\u263C' : '\u263E';
+    btnT.title = t === 'dark' ? 'Switch to light' : 'Switch to dark';
+  }
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    try { localStorage.setItem(KEY, t); } catch (e) {}
+    // Push to the iframe so it doesn't have to wait for a reload.
+    try {
+      iframe.contentWindow &&
+        iframe.contentWindow.postMessage({ type: 'scry-theme', value: t }, location.origin);
+    } catch (e) {}
+    renderToggle();
+  }
+  btnT.addEventListener('click', function () {
+    applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+  });
+  mq.addEventListener('change', function () {
+    if (!document.documentElement.hasAttribute('data-theme')) renderToggle();
+  });
+
+  // On iframe load, sync current theme into it (it has its own pre-paint
+  // script but a freshly mounted iframe may have raced us).
+  iframe.addEventListener('load', function () {
+    try {
+      iframe.contentWindow.postMessage(
+        { type: 'scry-theme', value: currentTheme() },
+        location.origin
+      );
+    } catch (e) {}
+  });
+
+  // --- boot ---------------------------------------------------------
+  renderToggle();
+  setMode(readMode());
+})();
 </script>
 </body>
 </html>
