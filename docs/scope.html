@@ -698,9 +698,10 @@
 
   <!-- ─── HEAD ─── -->
   <header class="doc-head">
-    <span class="brand">scry</span>
-    <span>
-      <span class="doc-meta">Scope Document · v0.1 · 2026-05-11</span>
+    <a class="brand" href="./" style="text-decoration:none;color:inherit;">scry</a>
+    <span style="display:inline-flex;align-items:center;gap:14px;">
+      <a href="./" style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--mint-deep);text-decoration:none;border:1px solid var(--rule);padding:5px 10px;">&larr; Workbench</a>
+      <span class="doc-meta">Scope Document &middot; v0.2 &middot; 2026-05-11</span>
       <button class="theme-toggle" type="button" aria-label="Toggle dark mode" id="theme-toggle">&#x263E;</button>
     </span>
   </header>
@@ -1352,36 +1353,112 @@
       <span class="sec-tag">Locked</span>
     </div>
     <dl class="stack">
-      <dt>Build</dt>
-      <dd>Vite 6 · TypeScript 5</dd>
+      <dt>V1 &middot; pure</dt>
+      <dd>Vanilla JS &middot; HTML &middot; CSS <span class="muted">(no framework, no bundler, no runtime dependency; minified at deploy with esbuild)</span></dd>
 
-      <dt>UI</dt>
-      <dd>Svelte 5 <span class="muted">(runes; smallest bundle, no virtual-DOM tax on hex scroll)</span></dd>
+      <dt>V2 &middot; build</dt>
+      <dd>Vite 5 &middot; Svelte 5 runes &middot; wasm-pack &middot; wasm-bindgen &middot; serde-wasm-bindgen</dd>
 
-      <dt>Rust toolchain</dt>
-      <dd>wasm-pack · wasm-bindgen · serde-wasm-bindgen</dd>
+      <dt>V2 &middot; Rust crate</dt>
+      <dd>scry-core <span class="muted">(parse_elf via</span> goblin<span class="muted">, detect_format, hex_rows)</span></dd>
 
-      <dt>Rust crates</dt>
-      <dd>goblin <span class="muted">(ELF)</span> · iced-x86 <span class="muted">(x86_64 disasm)</span> · serde · thiserror</dd>
+      <dt>RV32 disasm &amp; emu</dt>
+      <dd>Hand-written in V1 <span class="muted">(decoded from the RISC-V ISA manual; portable to V2 next)</span></dd>
 
-      <dt>RV32 emulator</dt>
-      <dd>Hand-written <span class="muted">(no crate; the code is portfolio material)</span></dd>
-
-      <dt>Zip parsing</dt>
-      <dd>fflate <span class="muted">(for .sal ingest)</span></dd>
-
-      <dt>Canvas</dt>
-      <dd>Native 2D context <span class="muted">(no charting library)</span></dd>
+      <dt>Trace decoders</dt>
+      <dd>Hand-written SPI &amp; I2C state machines reading the emu's MMIO log</dd>
 
       <dt>Hosting</dt>
-      <dd>Cloudflare Pages · existing goolz project · subpath /scry/</dd>
+      <dd>Cloudflare Pages &middot; goolz project &middot; subpath /scry/</dd>
 
       <dt>Source</dt>
-      <dd>github.com/melonmelonz/scry <span class="muted">(new)</span></dd>
+      <dd><a href="https://github.com/melonmelonz/scry">github.com/melonmelonz/scry</a></dd>
 
       <dt>Tests</dt>
-      <dd>Rust unit tests for parsers + emulator core · no JS test suite in v1</dd>
+      <dd>Manual + visual verification &middot; no automated suite in v1</dd>
     </dl>
+  </section>
+
+  <hr class="rule">
+
+  <!-- ─── 08 BUILT WITH CLAUDE ─── -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">08</span>
+      <span class="sec-title">Built with Claude.</span>
+      <span class="sec-tag">AI collaboration writeup</span>
+    </div>
+    <div class="prose">
+      <p>This section is for the class about AI. It is the same content shipped as <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">docs/ai-session-writeup.md</code> in the repo, surfaced here so the public scope dock is the one document anyone needs to read to understand both <span class="ink">what</span> scry is and <span class="ink">how</span> it was built.</p>
+      <p>The tool: Claude Code (Opus 4) in a terminal on Bazzite Fedora. The collaborator: me. The artifact you are reading: a record of where the model carried weight, where I steered, and where the seams are.</p>
+    </div>
+
+    <div class="subsec-head">
+      <span class="subsec-num">08.1</span>
+      <span class="subsec-title">What the AI did.</span>
+    </div>
+    <div class="prose">
+      <p>Across one continuous Claude Code session the assistant: diagnosed why all tabs except <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">EMPTY</code> appeared greyed out (intentionally disabled until a file loads; verified from the live site, not by guessing); added a tokenized dark mode across the landing, V1 workbench, scope doc, and V2 shell, with a synchronous head script so the first paint matches the user's stored choice; did a security pass that bounds-checked every DataView access in the ELF parser, capped section/segment/symbol counts to defend against integer-overflow DoS, whitelisted sample-manifest filenames by regex, and capped drag-drop ingestion at 64 MiB; did a UX pass that put tooltips on disabled tabs, hints in the status bar per module, color-coded state badges on the emulator, click-to-select hex byte detail, a goto-address form in disasm, click-to-pivot from inspect symbol to disasm address, and click-for-detail on trace transactions; scaffolded the entire V2 stack from zero (Cargo workspace, scry-core crate, wasm-pack output wired through Vite + Svelte 5); chained Rust + Vite + esbuild in <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">scripts/build.sh</code>; and replaced the landing chooser with a unified shell that hot-swaps V1 and V2 inside an iframe and pushes theme changes via <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">postMessage</code>.</p>
+      <p>Along the way it hit one real bug: <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">wasm-opt</code> refused to validate the modern bulk-memory ops Rust emits. The model diagnosed it from the actual error text and fixed it by disabling the post-opt step in Cargo.toml. The build broke once. The fix took two minutes. That is the failure mode I want from an AI tool.</p>
+    </div>
+
+    <div class="subsec-head">
+      <span class="subsec-num">08.2</span>
+      <span class="subsec-title">How I worked with it.</span>
+    </div>
+    <div class="prose">
+      <p>I treated Claude like a junior engineer who reads fast, writes faster, and has zero context on my taste until I correct it. My prompts were short and directional: "do v2 now please", "fix all of those please", "UI and UX need considered". When the model defaulted to verbose explanations or heavy frameworks, I cut it off. When it suggested something I would not ship (a CDN script tag, an em-dash in prose, a placeholder TODO inside a deployed file), I said so once and the rule stuck for the rest of the session.</p>
+      <p>The thing I did not delegate was scope. Every time the assistant proposed "more features", I either took the suggestion as-is or replaced it with something I actually wanted. The model is good at filling in the next reasonable step. It is not good at deciding which step the project needs. That is on me.</p>
+    </div>
+
+    <div class="subsec-head">
+      <span class="subsec-num">08.3</span>
+      <span class="subsec-title">Where AI was load-bearing.</span>
+    </div>
+    <div class="prose">
+      <p><span class="ink">Plumbing.</span> Cargo workspaces, Vite config for WASM, Svelte 5 runes syntax, hand-writing the bounds-checked binary reader. This is the boring code where you can lose half a day to a typo. Claude got the shape right on the first pass for almost all of it.</p>
+      <p><span class="ink">Token hygiene.</span> Dark mode meant touching every CSS file. Claude caught more <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">#hex</code> literals I had missed than I would have on my own, and it kept the names consistent across the three surfaces.</p>
+      <p><span class="ink">The audit pass.</span> I asked for "safety and security". The model came back with three findings ranked by exploitability, with code for each fix. I would not have thought to whitelist sample filenames on my own.</p>
+    </div>
+
+    <div class="subsec-head">
+      <span class="subsec-num">08.4</span>
+      <span class="subsec-title">Where I had to steer.</span>
+    </div>
+    <div class="prose">
+      <p><span class="ink">Aesthetic restraint.</span> The model wanted to add icons, framed panels, animations. I kept saying "subtlety". The output is now subtle. This took several rounds.</p>
+      <p><span class="ink">Avoiding "more is better".</span> When I said "flesh it all out", I had to be specific about what flesh out meant or the model would have added a fifth tab and a settings panel nobody asked for.</p>
+      <p><span class="ink">Voice.</span> The model defaults to corporate documentation prose. My voice is hedged and concrete. I wrote the prose. Claude wrote the scaffolding underneath.</p>
+    </div>
+
+    <div class="subsec-head">
+      <span class="subsec-num">08.5</span>
+      <span class="subsec-title">Friction worth naming.</span>
+    </div>
+    <div class="prose">
+      <p>The model occasionally needed to be told to use its dedicated file-reading tools instead of shell <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">cat | grep</code>. The system prompt enforces this; the assistant sometimes ignores it. Minor.</p>
+      <p>The model has no view of the live deployed site. Twice in this session I had to tell it "the site does X" so it would stop assuming local source matched production. The fix was always to <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">curl</code> the live URL and compare. Worth remembering.</p>
+      <p>The V2 build broke the first deploy because Vite was configured with <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">base: '/v2/'</code> but on goolz.org V2 lives at <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">/scry/v2/</code>. Asset URLs resolved to the wrong path. Fix: switch to <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">base: './'</code> so the build is location-independent. Two minutes once we knew.</p>
+    </div>
+
+    <div class="subsec-head">
+      <span class="subsec-num">08.6</span>
+      <span class="subsec-title">What I would do differently.</span>
+    </div>
+    <div class="prose">
+      <p>I would have written the security pass first, not after the UX pass. The bounds-check changes touched code the UX pass had already moved.</p>
+      <p>I would have set up the Vite + Svelte V2 scaffold on day one. V1 was fun, but V1 is also a re-implementation of goblin, and the only reason to do that is the receipt that I can.</p>
+      <p>I would have asked for a deliverable like this one earlier. Writing it in the same session as the build means I remember why each decision was made.</p>
+    </div>
+
+    <div class="subsec-head">
+      <span class="subsec-num">08.7</span>
+      <span class="subsec-title">Closing.</span>
+    </div>
+    <div class="prose">
+      <p>The work product is at <a href="https://goolz.org/scry">goolz.org/scry</a>. The source is at <a href="https://github.com/melonmelonz/scry">github.com/melonmelonz/scry</a>. If you read the V1 commits in order, you can see the build, including the moments where I changed direction. None of the code in this repo is generated and pasted blind. Every file got read, edited, and committed by a human who can defend the choices in it.</p>
+      <p>The AI is part of the toolchain, sitting at roughly the same level as my editor and my compiler. It would not have written scry without me. I would have shipped a worse, slower, less-tested scry without it.</p>
+    </div>
   </section>
 
   <footer>
