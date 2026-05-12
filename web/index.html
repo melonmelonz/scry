@@ -66,14 +66,43 @@ body::before {
   cursor: pointer;
   transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
 }
+.mode { position: relative; }
 .mode:hover { color: var(--ink); border-color: var(--mint-deep); }
 .mode.on {
   color: var(--mint-deep);
   border-color: var(--mint-deep);
-  background: var(--mint-pale);
+  background: var(--paper);
+}
+.mode.on::after {
+  content: '';
+  position: absolute;
+  left: 8px; right: 8px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--mint-deep);
 }
 .mode .sub { color: var(--muted); margin-left: 6px; letter-spacing: 0.06em; }
 .mode.on .sub { color: var(--mint-deep); }
+
+.demo-btn {
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mint-deep);
+  background: transparent;
+  border: 1px solid var(--mint-deep);
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
+}
+.demo-btn::before {
+  content: '\25B6';
+  margin-right: 6px;
+  font-size: 8px;
+  vertical-align: 1px;
+}
+.demo-btn:hover { color: var(--paper); background: var(--mint-deep); }
 
 .scope-link {
   font-size: 9px;
@@ -121,7 +150,10 @@ iframe.surface {
   border: 0;
   display: block;
   background: var(--bg);
+  opacity: 0;
+  transition: opacity 220ms ease;
 }
+iframe.surface.ready { opacity: 1; }
 
 /* Footer --------------------------------------------------------------- */
 .foot {
@@ -164,6 +196,7 @@ iframe.surface {
     </button>
   </div>
 
+  <button class="demo-btn" id="demo-btn" type="button" title="Load the bundled RV32 demo ELF">DEMO</button>
   <a class="scope-link" href="scope.html">Scope &amp; wireframes &rarr;</a>
   <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">&#x263E;</button>
 </header>
@@ -186,6 +219,7 @@ iframe.surface {
   var btnV1   = document.getElementById('mode-v1');
   var btnV2   = document.getElementById('mode-v2');
   var btnT    = document.getElementById('theme-toggle');
+  var btnDemo = document.getElementById('demo-btn');
   var mq      = window.matchMedia('(prefers-color-scheme: dark)');
 
   // --- mode ---------------------------------------------------------
@@ -211,10 +245,20 @@ iframe.surface {
     // get double chrome.
     var target = m + '/?embed=1';
     if (iframe.getAttribute('data-mode') !== m) {
+      iframe.classList.remove('ready');
       iframe.setAttribute('data-mode', m);
       iframe.src = target;
     }
   }
+
+  btnDemo.addEventListener('click', function () {
+    try {
+      iframe.contentWindow.postMessage(
+        { type: 'scry-load-demo' },
+        location.origin
+      );
+    } catch (e) {}
+  });
 
   btnV1.addEventListener('click', function () { setMode('v1'); });
   btnV2.addEventListener('click', function () { setMode('v2'); });
@@ -251,6 +295,7 @@ iframe.surface {
   // On iframe load, sync current theme into it (it has its own pre-paint
   // script but a freshly mounted iframe may have raced us).
   iframe.addEventListener('load', function () {
+    iframe.classList.add('ready');
     try {
       iframe.contentWindow.postMessage(
         { type: 'scry-theme', value: currentTheme() },

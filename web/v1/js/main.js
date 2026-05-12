@@ -8,9 +8,10 @@ import { createInspect } from './modules/inspect.js';
 import { createDisasm } from './modules/disasm.js';
 import { createEmu } from './modules/emu.js';
 import { createTrace } from './modules/trace.js';
-import { fileStore, ingestFile } from './stores/file.js';
+import { fileStore, ingestFile, loadFile } from './stores/file.js';
 import { router } from './stores/router.js';
 import { detectFormat } from './format/detect.js';
+import { buildDemoElf, DEMO_NAME } from './demo/rv32_demo.js';
 
 function mount() {
   const root = document.getElementById('app');
@@ -107,6 +108,17 @@ function mount() {
     dragDepth = Math.max(0, dragDepth - 1);
     if (dragDepth === 0) dropOverlay.classList.remove('on');
   });
+  // Parent shell (unified embed) can push a "load demo" command so the user
+  // gets a one-click way to see the workbench populated without leaving the
+  // outer chrome.
+  window.addEventListener('message', (ev) => {
+    if (ev.origin !== location.origin) return;
+    const m = ev.data;
+    if (m && m.type === 'scry-load-demo') {
+      loadFile(DEMO_NAME, buildDemoElf());
+    }
+  });
+
   window.addEventListener('drop', (e) => {
     e.preventDefault();
     dragDepth = 0;

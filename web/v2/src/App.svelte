@@ -1,6 +1,7 @@
 <script>
   import { ensureWasm } from './lib/wasm.js';
   import { toggleTheme, currentTheme } from './lib/theme.js';
+  import { buildDemoElf, DEMO_NAME } from '../../v1/js/demo/rv32_demo.js';
   import Drop from './lib/Drop.svelte';
   import Inspect from './lib/Inspect.svelte';
   import Hex from './lib/Hex.svelte';
@@ -8,23 +9,36 @@
   let file = $state(null);     // { name, bytes }
   let format = $state(null);   // 'elf' | 'pe' | ...
   let report = $state(null);   // ElfReport | null
+  let strings = $state(null);  // [{ offset, text }]
   let error  = $state('');
   let view   = $state('inspect'); // 'inspect' | 'hex'
   let theme  = $state(currentTheme());
+  let parsing = $state(false);
+  let hexJumpTo = $state(null);
+
+  // Per-view bottom-bar hints. Mirrors v1's hint store contract — short
+  // tracked text that surfaces what's available in the current pane.
+  const HINTS = {
+    inspect: 'click a section/segment/string -> jump in HEX',
+    hex:     'paginate with PAGE/ROW, type a hex offset to jump, click the strip',
+  };
 
   // When iframed under the unified shell (?embed=1) the parent paints brand,
   // theme toggle, back link, and the mint stripe. Hide our copies so the
   // chrome doesn't double up.
   const embedded = typeof location !== 'undefined' && /[?&]embed=1\b/.test(location.search);
 
-  // Accept theme pushes from the parent shell.
+  // Accept theme + load-demo pushes from the parent shell.
   $effect(() => {
     function onmsg(ev) {
       if (ev.origin !== location.origin) return;
       const m = ev.data;
-      if (m && m.type === 'scry-theme' && (m.value === 'light' || m.value === 'dark')) {
+      if (!m) return;
+      if (m.type === 'scry-theme' && (m.value === 'light' || m.value === 'dark')) {
         document.documentElement.setAttribute('data-theme', m.value);
         theme = m.value;
+      } else if (m.type === 'scry-load-demo') {
+        loadDemo();
       }
     }
     window.addEventListener('message', onmsg);
@@ -41,23 +55,48 @@
     file = { name, bytes };
     error = '';
     report = null;
+    strings = null;
     format = null;
+    parsing = true;
     try {
       const core = await ensureWasm();
       format = core.detect_format(bytes);
       if (format === 'elf') {
         report = core.parse_elf(bytes);
       }
+      // Strings + entropy are format-agnostic; run them on anything.
+      strings = core.extract_strings(bytes, 4);
     } catch (e) {
       error = String(e);
+    } finally {
+      parsing = false;
     }
   }
 
   function reset() {
-    file = null; report = null; format = null; error = '';
+    file = null; report = null; strings = null; format = null; error = '';
   }
 
   function doToggle() { theme = toggleTheme(); }
+  function loadDemo() { onfile({ name: DEMO_NAME, bytes: buildDemoElf() }); }
+
+  function jumpToOffset(o) {
+    view = 'hex';
+    // Force the effect to re-fire even if the same offset is asked for.
+    hexJumpTo = { o, t: performance.now() };
+  }
+
+  // Build a compact bracketed format chip from parsed info, e.g.
+  //   "ELF · RISC-V · 32-bit · EXEC"
+  // Falls back gracefully when we only have format detection.
+  let fileBadge = $derived.by(() => {
+    if (!file) return null;
+    if (report) {
+      const s = report.summary;
+      return [format?.toUpperCase(), s.machine, s.class, s.kind].filter(Boolean).join(' · ');
+    }
+    return (format || 'raw').toUpperCase();
+  });
 </script>
 
 <div class="app" class:embedded>
@@ -69,7 +108,12 @@
       <span class="s-meta">
         <span>FILE<span class="v">{file.name}</span></span>
         <span>SIZE<span class="v">{sizeFmt(file.bytes.length)}</span></span>
-        <span>FMT<span class="v">{format ?? '…'}</span></span>
+        {#if fileBadge}
+          <span class="s-badge">[ {fileBadge} ]</span>
+        {/if}
+        {#if parsing}
+          <span class="s-parsing">parsing…</span>
+        {/if}
         <button class="s-close" type="button" onclick={reset}>CLOSE</button>
       </span>
     {:else}
@@ -113,12 +157,12 @@
 
       {#if view === 'inspect'}
         {#if report}
-          <Inspect {report} />
+          <Inspect {report} {strings} onJumpToOffset={jumpToOffset} />
         {:else if format && format !== 'elf'}
           <p class="todo">v2 currently inspects ELF only. Detected: <b>{format}</b>. PE / Mach-O / WASM headers-only panes are on the roadmap.</p>
         {/if}
       {:else if view === 'hex'}
-        <Hex bytes={file.bytes} />
+        <Hex bytes={file.bytes} jumpTo={hexJumpTo?.o} />
       {/if}
     {/if}
   </main>
@@ -127,6 +171,9 @@
     <span>
       <span class="dot"></span>{file ? 'READY' : 'AWAITING FILE'} &middot; LOCAL &middot; NO UPLOAD
     </span>
+    {#if file}
+      <span class="s-hint">{HINTS[view] ?? ''}</span>
+    {/if}
     <span class="s-status-right">
       MODULE &middot; {file ? view.toUpperCase() : 'EMPTY'} &middot; RUST&middot;WASM v0.1
     </span>
@@ -178,6 +225,25 @@
     align-items: baseline;
   }
   .s-meta .v { color: var(--ink); margin-left: var(--sp-1); }
+  .s-badge {
+    color: var(--mint-deep);
+    border: 1px solid var(--mint-deep);
+    padding: 1px 6px;
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .s-parsing {
+    color: var(--accent-system);
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    animation: pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.5; }
+    50%      { opacity: 1; }
+  }
   .s-close {
     font-family: inherit;
     font-size: 9px;
@@ -289,4 +355,16 @@
     vertical-align: 1px;
   }
   .s-status-right { display: inline-flex; gap: 4px; }
+  .s-hint {
+    color: var(--muted);
+    font-size: var(--fs-label);
+    letter-spacing: 0.08em;
+    text-transform: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    text-align: center;
+    padding: 0 16px;
+  }
 </style>

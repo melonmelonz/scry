@@ -247,6 +247,69 @@ pub fn detect_format(bytes: &[u8]) -> String {
     "raw".into()
 }
 
+#[derive(Serialize)]
+pub struct StringHit {
+    pub offset: usize,
+    pub text: String,
+}
+
+/// Scan `bytes` for runs of printable ASCII (0x20..=0x7E) at least `min_len`
+/// long. Returns up to 4096 hits as (offset, text). Useful for surfacing
+/// `.rodata` content without a full parser.
+#[wasm_bindgen]
+pub fn extract_strings(bytes: &[u8], min_len: usize) -> Result<JsValue, JsValue> {
+    let min = min_len.max(2);
+    const CAP: usize = 4096;
+    let mut out: Vec<StringHit> = Vec::new();
+    let mut start: Option<usize> = None;
+    let mut buf = String::new();
+    for (i, &b) in bytes.iter().enumerate() {
+        if (0x20..=0x7E).contains(&b) {
+            if start.is_none() { start = Some(i); buf.clear(); }
+            buf.push(b as char);
+        } else if let Some(s) = start.take() {
+            if buf.len() >= min {
+                out.push(StringHit { offset: s, text: std::mem::take(&mut buf) });
+                if out.len() >= CAP { break; }
+            }
+            buf.clear();
+        }
+    }
+    if let Some(s) = start {
+        if buf.len() >= min && out.len() < CAP {
+            out.push(StringHit { offset: s, text: buf });
+        }
+    }
+    serde_wasm_bindgen::to_value(&out).map_err(|e| JsValue::from_str(&format!("{e}")))
+}
+
+/// Compute normalized Shannon entropy (0.0 .. 1.0) for each block of
+/// `block_size` bytes. Useful as a one-row sparkline that highlights packed
+/// or encrypted regions vs. plain code / data. 8 bits of entropy = 1.0.
+#[wasm_bindgen]
+pub fn entropy_blocks(bytes: &[u8], block_size: usize) -> Vec<f32> {
+    let bs = block_size.max(64);
+    let mut out: Vec<f32> = Vec::with_capacity(bytes.len() / bs + 1);
+    let mut i = 0;
+    while i < bytes.len() {
+        let end = (i + bs).min(bytes.len());
+        let block = &bytes[i..end];
+        let mut counts = [0u32; 256];
+        for &b in block { counts[b as usize] += 1; }
+        let n = block.len() as f32;
+        let mut h = 0f32;
+        for &c in counts.iter() {
+            if c > 0 {
+                let p = c as f32 / n;
+                h -= p * p.log2();
+            }
+        }
+        out.push((h / 8.0).clamp(0.0, 1.0));
+        i = end;
+    }
+    out
+}
+
 /// Returns hex+ascii rows for a byte range. Each row is a single string
 /// formatted exactly like v1's hex view; the JS side splits and lays out.
 #[wasm_bindgen]
