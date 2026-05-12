@@ -123,12 +123,14 @@
     {/if}
   </main>
 
-  {#if !embedded}
-    <footer class="s-status">
-      <span><span class="dot"></span>LOCAL &middot; NO UPLOAD &middot; NO LOGIN</span>
-      <span class="s-status-right">v0.1 &middot; RUST&middot;WASM</span>
-    </footer>
-  {/if}
+  <footer class="s-status">
+    <span>
+      <span class="dot"></span>{file ? 'READY' : 'AWAITING FILE'} &middot; LOCAL &middot; NO UPLOAD
+    </span>
+    <span class="s-status-right">
+      MODULE &middot; {file ? view.toUpperCase() : 'EMPTY'} &middot; RUST&middot;WASM v0.1
+    </span>
+  </footer>
 </div>
 
 <style>
@@ -140,8 +142,9 @@
   }
   /* Without the tab bar (no file yet) collapse that row. */
   .app:not(:has(.s-tabs)) { grid-template-rows: auto 1fr auto; }
-  .app.embedded { height: 100%; grid-template-rows: auto auto 1fr; }
-  .app.embedded:not(:has(.s-tabs)) { grid-template-rows: auto 1fr; }
+  /* Embedded inside the unified shell — fill the iframe height, not the
+     parent viewport. Status bar stays (mirrors v1). */
+  .app.embedded { height: 100%; }
 
   /* ─── Header (mirrors v1 .s-header) ────────── */
   .s-header {
@@ -246,10 +249,9 @@
     overflow: auto;
     position: relative;
     min-height: 0;
-    padding: 22px 26px;
+    padding: 0 22px 22px;
     display: flex;
     flex-direction: column;
-    min-height: 0;
   }
 
   .err {

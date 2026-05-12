@@ -13,4 +13,11 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
   },
+  // v2's Drop pane imports the RV32 demo synthesizer from v1 so there is one
+  // source of truth (web/v1/js/demo/rv32_demo.js). The Rollup build follows
+  // static imports across roots without complaint, but the dev server needs
+  // explicit fs.allow to serve files from sibling directories.
+  server: {
+    fs: { allow: ['..', '../..'] },
+  },
 });
