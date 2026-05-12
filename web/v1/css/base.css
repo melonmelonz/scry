@@ -32,7 +32,8 @@ body {
   overflow: hidden;
 }
 
-/* The mint stripe. 3px, top, every page. */
+/* The mint stripe. 3px, top, every page. Hidden when embedded inside the
+   unified shell — the parent already paints one and we don't want two. */
 body::before {
   content: '';
   position: fixed;
@@ -42,6 +43,7 @@ body::before {
   z-index: 100;
   pointer-events: none;
 }
+:root[data-embedded] body::before { display: none; }
 
 button, input, select, textarea {
   font: inherit;

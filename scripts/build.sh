@@ -33,8 +33,11 @@ cd "$ROOT"
 rm -rf "$ROOT/web/dist"
 mkdir -p "$ROOT/web/dist"
 
-# Landing page at the root.
+# Landing page + shared design tokens at the root. The parent shell links
+# tokens.css directly; v1's stylesheet @import's it from `../../tokens.css`
+# so the file must sit at dist root alongside the parent index.
 cp "$ROOT/web/index.html" "$ROOT/web/dist/index.html"
+cp "$ROOT/web/tokens.css" "$ROOT/web/dist/tokens.css"
 
 # Scope page at the root.
 if [ -f "$ROOT/docs/scope.html" ]; then

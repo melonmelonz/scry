@@ -1032,7 +1032,7 @@
     <a class="brand" href="./" style="text-decoration:none;color:inherit;">scry</a>
     <span style="display:inline-flex;align-items:center;gap:14px;">
       <a href="./" style="font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--mint-deep);text-decoration:none;border:1px solid var(--rule);padding:5px 10px;">&larr; Workbench</a>
-      <span class="doc-meta">Scope Document &middot; v0.3 &middot; 2026-05-11</span>
+      <span class="doc-meta">Scope Document &middot; v0.4 &middot; 2026-05-11</span>
       <button class="theme-toggle" type="button" aria-label="Toggle dark mode" id="theme-toggle">&#x263E;</button>
     </span>
   </header>
@@ -1065,10 +1065,12 @@
       <span class="sec-tag">Updated 2026-05-11</span>
     </div>
     <div class="prose">
-      <p><span class="ink">Two engines, one shell.</span> The live site at <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">goolz.org/scry</code> is a single app. A top-bar mode picker swaps between <span class="ink">V1 &middot; PURE</span> (hand-rolled vanilla JS, HTML, CSS &mdash; no framework, no bundler, no runtime dependency) and <span class="ink">V2 &middot; RUST &middot; WASM</span> (Rust core compiled to WebAssembly, Svelte 5 + Vite shell). Dark mode and state live at the shell level so flipping engines feels like flipping a switch on the same instrument.</p>
-      <p><span class="ink">Shipped.</span> V1 covers all five modules (Inspect, Hex, Disasm, Emu, Trace) on the synthetic-bus spine in §02. ELF parser is bounds-checked, drag-drop is size-capped, sample-manifest entries are whitelisted. V2 ships Inspect and Hex against the Rust core via <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">goblin</code>.</p>
-      <p><span class="ink">Next.</span> Port the V1 RV32IMA decoder and interpreter into Rust so V2's Disasm and Emu panes light up. Then re-route the synthetic bus stream through the Rust core so V2 has its own Trace pane. Stretch: real <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">.sal</code> capture ingest, headers-only PE/Mach-O inspect.</p>
-      <p><span class="ink">Direction shifts from the original spec.</span> Two builds instead of one, dark mode now in scope, x86_64 disassembly dropped, synthetic-bus tracing replacing Saleae ingest for v1. Everything else in this document still holds.</p>
+      <p><span class="ink">Two engines, one shell &mdash; but they are not the same project.</span> The live site at <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">goolz.org/scry</code> is a single app with a top-bar mode picker. <span class="ink">V1 &middot; PURE</span> is the graded class deliverable. <span class="ink">V2 &middot; RUST &middot; WASM</span> is a side project that explores the same problem in a different stack.</p>
+      <p><span class="ink">V1 &middot; PURE &middot; the class demo.</span> Hand-rolled vanilla JS, HTML, CSS. No framework. No bundler. No runtime dependency. Ships all five modules (Inspect, Hex, Disasm, Emu, Trace) on the synthetic-bus spine in §02. ELF parser is bounds-checked, drag-drop is size-capped, sample-manifest entries are whitelisted. <em style="color:var(--mint-deep);font-style:normal">This is the surface that must work for the demo.</em></p>
+      <p><span class="ink">V2 &middot; RUST &middot; WASM &middot; the side project.</span> Rust core compiled to WebAssembly, Svelte 5 + Vite shell. Currently ships Inspect and Hex against the Rust core via <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">goblin</code>. Not on the critical path; included because the two-stack contrast is the most honest way to show what the framework-free approach buys you. <em style="color:var(--muted);font-style:normal">If V2 isn&rsquo;t finished by demo day, V1 is still the deliverable.</em></p>
+      <p><span class="ink">Shared chrome.</span> Dark mode, mode persistence, the file-context rail, and the workbench shell live at the wrapper level. Flipping engines feels like flipping a switch on the same instrument &mdash; intentional, because the point of having both is to <span class="ink">compare</span> them.</p>
+      <p><span class="ink">Next on V2.</span> Port the V1 RV32IMA decoder and interpreter into Rust so V2&rsquo;s Disasm and Emu panes light up. Then re-route the synthetic bus stream through the Rust core so V2 has its own Trace pane. Stretch: real <code style="font-family:var(--mono);background:var(--bg);padding:1px 6px;border:1px solid var(--grey);border-radius:2px">.sal</code> capture ingest, headers-only PE/Mach-O inspect.</p>
+      <p><span class="ink">Direction shifts from the original spec.</span> Two builds instead of one (V2 added as the side project), dark mode now in scope, x86_64 disassembly dropped, synthetic-bus tracing replacing Saleae ingest for the demo. Everything else in this document still holds.</p>
     </div>
   </section>
 
@@ -1684,13 +1686,13 @@
       <span class="sec-tag">Locked</span>
     </div>
     <dl class="stack">
-      <dt>V1 &middot; pure</dt>
+      <dt>V1 &middot; class demo</dt>
       <dd>Vanilla JS &middot; HTML &middot; CSS <span class="muted">(no framework, no bundler, no runtime dependency; minified at deploy with esbuild)</span></dd>
 
-      <dt>V2 &middot; build</dt>
+      <dt>V2 &middot; side project &middot; build</dt>
       <dd>Vite 5 &middot; Svelte 5 runes &middot; wasm-pack &middot; wasm-bindgen &middot; serde-wasm-bindgen</dd>
 
-      <dt>V2 &middot; Rust crate</dt>
+      <dt>V2 &middot; side project &middot; Rust crate</dt>
       <dd>scry-core <span class="muted">(parse_elf via</span> goblin<span class="muted">, detect_format, hex_rows)</span></dd>
 
       <dt>RV32 disasm &amp; emu</dt>
@@ -1867,15 +1869,17 @@
     <div class="sec-head">
       <span class="sec-num">10</span>
       <span class="sec-title">Features.</span>
-      <span class="sec-tag">MVP &middot; additional</span>
+      <span class="sec-tag">V1 demo &middot; V2 side project</span>
     </div>
     <div class="prose">
-      <p>The MVP column is the load-bearing surface &mdash; the work without which scry is not scry. The additional column is shipped polish that earned its place during the UX and security passes. Everything below is live; anything that isn&rsquo;t is in the &ldquo;Out &middot; deferred&rdquo; list in &sect;06.</p>
+      <p>The columns separate the two efforts. <span class="ink">V1 &middot; PURE</span> on the left is the class deliverable &mdash; every item listed must work for the demo to be the demo. <span class="ink">V2 &middot; RUST &middot; WASM</span> on the right is the side project &mdash; shipped state to the right of each item shows where each module is today, not where it has to be on demo day. Anything not below is in the &ldquo;Out &middot; deferred&rdquo; list in &sect;06.</p>
     </div>
+
+    <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--mint-deep);margin:18px 0 10px;font-weight:600">V1 &middot; PURE &middot; class demo</h4>
 
     <div class="cut">
       <div class="cut-col">
-        <h4>MVP &middot; required</h4>
+        <h4>MVP &middot; required for demo</h4>
         <ul>
           <li>Client-only architecture &middot; no upload, no login, no server</li>
           <li>Drag-and-drop file intake with format sniffing (ELF magic)</li>
@@ -1886,17 +1890,14 @@
           <li>Synthetic bus pipeline from emulator MMIO writes to Trace</li>
           <li>SPI + I&sup2;C decoders running on the bus log</li>
           <li>Canvas waveform render with cycle-accurate timing</li>
-          <li>Two engines, one shell &middot; V1 pure JS &middot; V2 Rust&rarr;WASM</li>
           <li>Hash routing &middot; static-host friendly &middot; works from <code>file://</code></li>
           <li>File-context rail &middot; status bar &middot; per-module hints</li>
+          <li>Hand-rolled vanilla JS &middot; HTML &middot; CSS &middot; zero runtime deps</li>
         </ul>
       </div>
       <div class="cut-col">
         <h4>Additional &middot; shipped polish</h4>
         <ul>
-          <li>Dark mode with persisted <code>scry-theme</code> + <code>prefers-color-scheme</code> fallback</li>
-          <li>Theme propagation across iframe via <code>postMessage</code></li>
-          <li>Mode persistence (<code>localStorage[&apos;scry-mode&apos;]</code> + URL hash)</li>
           <li>Tooltips on disabled tabs explaining gating</li>
           <li>Color-coded emulator state badges (Ready &middot; Running &middot; ECALL &middot; Halted &middot; Paused)</li>
           <li>Click-to-select byte detail in hex view</li>
@@ -1907,10 +1908,41 @@
           <li>Bounds-checked DataView reader (overflow-safe offsets)</li>
           <li>Section / segment / symbol count caps (65,535 / 65,535 / 1,000,000)</li>
           <li>64 MiB drag-drop ingest ceiling</li>
-          <li>esbuild-minified V1 &middot; Vite-bundled V2 &middot; CF Pages compression</li>
-          <li>Scope dock at <code>/scry/scope.html</code> with personas, stories, transcript</li>
+          <li>esbuild-minified at deploy &middot; CF Pages compression</li>
         </ul>
       </div>
+    </div>
+
+    <h4 style="font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--mint-deep);margin:28px 0 10px;font-weight:600">V2 &middot; RUST &middot; WASM &middot; side project</h4>
+
+    <div class="cut">
+      <div class="cut-col">
+        <h4>Shipped today</h4>
+        <ul>
+          <li>Rust core compiled to WebAssembly via wasm-pack</li>
+          <li>Svelte 5 + Vite shell with hot module reload during dev</li>
+          <li>ELF parsing through <code>goblin</code> behind a typed WASM boundary</li>
+          <li>Inspect module reading the Rust-parsed metadata</li>
+          <li>Hex module backed by the shared file buffer</li>
+          <li>Same chrome as V1 &middot; dark mode &middot; rail &middot; status bar</li>
+          <li>Vite bundle minified &middot; CF Pages compression</li>
+        </ul>
+      </div>
+      <div class="cut-col">
+        <h4>Planned &middot; not on demo path</h4>
+        <ul>
+          <li>RV32IMA decoder ported into Rust &middot; Disasm pane lit up</li>
+          <li>RV32IMA interpreter ported into Rust &middot; Emu pane running</li>
+          <li>Synthetic bus events emitted from the Rust core &middot; Trace pane</li>
+          <li>Headers-only PE / Mach-O inspect once the Rust boundary is settled</li>
+          <li>Real <code>.sal</code> capture ingest as a stretch goal</li>
+          <li>Benchmark V1 vs V2 on large ELFs &middot; honest numbers in &sect;13</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="prose" style="margin-top:18px">
+      <p><span class="muted">Sequencing: V1 is what gets graded. V2 is the comparison piece that makes the framework-free choice in V1 legible. If V2 is unfinished on demo day, the demo runs entirely on V1 and the V2 tab is hidden behind a mode picker that defaults to V1.</span></p>
     </div>
   </section>
 
@@ -2357,7 +2389,7 @@
   </section>
 
   <footer>
-    <span>SCRY · SCOPE · v0.3 · 2026-05-11</span>
+    <span>SCRY · SCOPE · v0.4 · 2026-05-11</span>
     <span><a href="https://github.com/melonmelonz/scry">github.com/melonmelonz/scry</a></span>
   </footer>
 

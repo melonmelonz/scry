@@ -13,7 +13,7 @@ use wasm_bindgen::prelude::*;
 /// console instead of disappearing into the void.
 #[wasm_bindgen(start)]
 pub fn _start() {
-    // No-op for now; once the crate gets bigger we'll wire console_error_panic_hook.
+    console_error_panic_hook::set_once();
 }
 
 #[derive(Serialize)]
@@ -104,7 +104,7 @@ pub fn parse_elf(bytes: &[u8]) -> Result<JsValue, JsValue> {
     let summary = ElfSummary {
         class:   if is_64 { "64-bit" } else { "32-bit" },
         data:    if elf.little_endian { "little-endian" } else { "big-endian" },
-        osabi:   format!("{:?}", elf.header.e_ident[7]),
+        osabi:   osabi_label(elf.header.e_ident[7]),
         kind:    et_label(elf.header.e_type),
         machine: machine_label(elf.header.e_machine),
         entry:   hex_w(elf.header.e_entry, addr_w),
@@ -212,13 +212,32 @@ fn stt_label(t: u8) -> String {
     }.to_owned()
 }
 
+fn osabi_label(b: u8) -> String {
+    match b {
+        0   => "SYSV",
+        1   => "HP-UX",
+        2   => "NetBSD",
+        3   => "GNU",
+        6   => "Solaris",
+        7   => "AIX",
+        8   => "IRIX",
+        9   => "FreeBSD",
+        10  => "TRU64",
+        11  => "Modesto",
+        12  => "OpenBSD",
+        64  => "ARM-EABI",
+        97  => "ARM",
+        255 => "Standalone",
+        _ => return format!("0x{:X}", b),
+    }.to_owned()
+}
+
 /// Cheap "format" sniffer for the landing chip. Returns "elf", "macho", "pe",
 /// "wasm", or "raw". Matches the v1 detect.js behavior.
 #[wasm_bindgen]
 pub fn detect_format(bytes: &[u8]) -> String {
     if bytes.len() < 4 { return "raw".into(); }
     if bytes[0] == 0x7F && bytes[1] == b'E' && bytes[2] == b'L' && bytes[3] == b'F' { return "elf".into(); }
-    if bytes.len() >= 4 && bytes[..4] == [0x4D, 0x5A, 0, 0][..2] { return "pe".into(); }
     if bytes[0] == b'M' && bytes[1] == b'Z' { return "pe".into(); }
     if bytes[..4] == [0xCF, 0xFA, 0xED, 0xFE] { return "macho".into(); }
     if bytes[..4] == [0xFE, 0xED, 0xFA, 0xCE] { return "macho".into(); }

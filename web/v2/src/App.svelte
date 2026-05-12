@@ -12,12 +12,12 @@
   let view   = $state('inspect'); // 'inspect' | 'hex'
   let theme  = $state(currentTheme());
 
-  // When the unified shell iframes us with ?embed=1, hide our own brand +
-  // theme toggle + back link; the parent provides those.
+  // When iframed under the unified shell (?embed=1) the parent paints brand,
+  // theme toggle, back link, and the mint stripe. Hide our copies so the
+  // chrome doesn't double up.
   const embedded = typeof location !== 'undefined' && /[?&]embed=1\b/.test(location.search);
 
-  // Accept theme pushes from the parent shell so a toggle outside the
-  // iframe lands instantly without a reload.
+  // Accept theme pushes from the parent shell.
   $effect(() => {
     function onmsg(ev) {
       if (ev.origin !== location.origin) return;
@@ -30,6 +30,12 @@
     window.addEventListener('message', onmsg);
     return () => window.removeEventListener('message', onmsg);
   });
+
+  function sizeFmt(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KiB';
+    return (n / 1024 / 1024).toFixed(1) + ' MiB';
+  }
 
   async function onfile({ name, bytes }) {
     file = { name, bytes };
@@ -54,39 +60,53 @@
   function doToggle() { theme = toggleTheme(); }
 </script>
 
-<div class="shell">
-  <header class="hd">
+<div class="app" class:embedded>
+  <header class="s-header">
     {#if !embedded}
-      <span class="brand">scry / v2</span>
+      <span class="s-brand">scry</span>
     {/if}
-    <span class="sub">rust → wasm · svelte 5</span>
-    <span class="spacer"></span>
     {#if file}
-      <span class="file">{file.name} · {file.bytes.length.toLocaleString()} B · {format ?? '…'}</span>
-      <button onclick={reset}>Close</button>
+      <span class="s-meta">
+        <span>FILE<span class="v">{file.name}</span></span>
+        <span>SIZE<span class="v">{sizeFmt(file.bytes.length)}</span></span>
+        <span>FMT<span class="v">{format ?? '…'}</span></span>
+        <button class="s-close" type="button" onclick={reset}>CLOSE</button>
+      </span>
+    {:else}
+      <span class="s-meta"><span>WORKBENCH &middot; v0.1 &middot; RUST&middot;WASM</span></span>
     {/if}
     {#if !embedded}
-      <button class="theme" onclick={doToggle} aria-label="Toggle theme">
-        {theme === 'dark' ? '\u263C' : '\u263E'}
-      </button>
-      <a class="back" href="/">↩ scry root</a>
+      <span class="s-right">
+        <button class="s-theme" type="button" onclick={doToggle} aria-label="Toggle theme">
+          {theme === 'dark' ? '\u263C' : '\u263E'}
+        </button>
+        <a class="s-back" href="/">↩ scry root</a>
+      </span>
     {/if}
   </header>
 
-  {#if !file}
-    <main class="empty">
-      <Drop {onfile} />
-    </main>
-  {:else}
-    <nav class="tabs">
-      <button class:active={view === 'inspect'} onclick={() => (view = 'inspect')} disabled={format !== 'elf'}>
-        INSPECT
-        {#if format !== 'elf'}<span class="why" title="ELF only in v2 for now">·{format}</span>{/if}
-      </button>
-      <button class:active={view === 'hex'} onclick={() => (view = 'hex')}>HEX</button>
+  {#if file}
+    <nav class="s-tabs">
+      <button
+        class:on={view === 'inspect'}
+        disabled={format !== 'elf'}
+        title={format === 'elf' ? '' : 'INSPECT is ELF-only'}
+        onclick={() => (view = 'inspect')}
+      >INSPECT</button>
+      <button
+        class:on={view === 'hex'}
+        onclick={() => (view = 'hex')}
+      >HEX</button>
+      <button disabled title="DISASM lives in v1 today; v2 port is in flight">DISASM</button>
+      <button disabled title="EMU lives in v1 today; v2 port is in flight">EMU</button>
+      <button disabled title="TRACE lives in v1 today; v2 port is in flight">TRACE</button>
     </nav>
+  {/if}
 
-    <main class="body">
+  <main class="s-main">
+    {#if !file}
+      <Drop {onfile} />
+    {:else}
       {#if error}
         <p class="err">parse failed: {error}</p>
       {/if}
@@ -95,79 +115,146 @@
         {#if report}
           <Inspect {report} />
         {:else if format && format !== 'elf'}
-          <p class="todo">v2 currently inspects ELF only. Detected: <b>{format}</b>. PE / Mach-O / WASM coming after the RV32 disassembler lands.</p>
+          <p class="todo">v2 currently inspects ELF only. Detected: <b>{format}</b>. PE / Mach-O / WASM headers-only panes are on the roadmap.</p>
         {/if}
       {:else if view === 'hex'}
         <Hex bytes={file.bytes} />
       {/if}
-    </main>
-  {/if}
+    {/if}
+  </main>
 
-  <footer class="ft">
-    <span>LOCAL · NO UPLOAD</span>
-    <span>v0.1 · scaffolding</span>
-  </footer>
+  {#if !embedded}
+    <footer class="s-status">
+      <span><span class="dot"></span>LOCAL &middot; NO UPLOAD &middot; NO LOGIN</span>
+      <span class="s-status-right">v0.1 &middot; RUST&middot;WASM</span>
+    </footer>
+  {/if}
 </div>
 
 <style>
-  .shell {
+  /* Match v1's frame layout: header, tab bar, body, status bar. */
+  .app {
     display: grid;
     grid-template-rows: auto auto 1fr auto;
     height: 100vh;
-    padding: 22px 26px;
-    gap: 14px;
   }
-  .hd {
+  /* Without the tab bar (no file yet) collapse that row. */
+  .app:not(:has(.s-tabs)) { grid-template-rows: auto 1fr auto; }
+  .app.embedded { height: 100%; grid-template-rows: auto auto 1fr; }
+  .app.embedded:not(:has(.s-tabs)) { grid-template-rows: auto 1fr; }
+
+  /* ─── Header (mirrors v1 .s-header) ────────── */
+  .s-header {
+    padding: 14px 22px 12px;
     display: flex;
+    justify-content: space-between;
     align-items: baseline;
+    border-bottom: var(--r-strong);
     gap: 16px;
-    border-bottom: 1px solid var(--ink);
-    padding-bottom: 12px;
   }
-  .brand { font-weight: 600; font-size: 13px; letter-spacing: 0.04em; }
-  .brand::before { content: '◆ '; color: var(--mint-deep); font-size: 11px; }
-  .sub {
-    font-size: 9px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--muted);
+  .embedded .s-header {
+    padding: 10px 18px 8px;
+    justify-content: flex-end;
   }
-  .spacer { flex: 1; }
-  .file { font-size: 10px; color: var(--mint-deep); letter-spacing: 0.06em; }
-  .theme {
-    font-family: inherit;
-    width: 28px; height: 24px;
-    padding: 0;
+  .s-brand {
+    font-weight: 600;
+    font-size: var(--fs-body-2);
+    letter-spacing: 0.04em;
+  }
+  .s-brand::before {
+    content: '◆ ';
     color: var(--mint-deep);
-    border: 1px solid var(--rule);
-    display: inline-flex; align-items: center; justify-content: center;
+    font-size: var(--fs-chrome-2);
   }
-  .back { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
-
-  .tabs { display: flex; gap: 6px; }
-  .tabs button {
-    background: var(--paper);
-    color: var(--muted);
-    border: 1px solid var(--rule);
-  }
-  .tabs button.active { color: var(--mint-deep); border-color: var(--mint-deep); }
-  .tabs button:disabled { opacity: 0.55; cursor: not-allowed; }
-  .why { color: var(--muted); margin-left: 6px; }
-
-  .empty {
+  .s-meta {
     display: flex;
+    gap: var(--sp-5);
+    color: var(--muted);
+    font-size: var(--fs-chrome);
+    letter-spacing: 0.12em;
+    align-items: baseline;
+  }
+  .s-meta .v { color: var(--ink); margin-left: var(--sp-1); }
+  .s-close {
+    font-family: inherit;
+    font-size: 9px;
+    letter-spacing: var(--tr-bracket);
+    color: var(--muted);
+    background: transparent;
+    border: 1px solid var(--rule);
+    padding: 3px 8px;
+    cursor: pointer;
+  }
+  .s-close:hover { color: var(--ink); border-color: var(--mint-deep); }
+  .s-right {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--sp-4);
+  }
+  .s-theme {
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1;
+    color: var(--mint-deep);
+    background: transparent;
+    border: 1px solid var(--rule);
+    width: 26px;
+    height: 22px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 40px 0;
+    cursor: pointer;
+    padding: 0;
+    align-self: center;
   }
-  .body {
+  .s-theme:hover { color: var(--ink); border-color: var(--mint-deep); background: var(--mint-pale); }
+  .s-back {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--mint-deep);
+  }
+
+  /* ─── Tab bar (mirrors v1 .s-tabs) ─────────── */
+  .s-tabs { display: flex; border-bottom: var(--r-thin); }
+  .s-tabs button {
+    padding: 11px 18px;
+    font-size: var(--fs-chrome);
+    letter-spacing: var(--tr-label);
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 0;
+    border-right: var(--r-thin);
+    transition: color var(--t-fast);
+    font-family: inherit;
+    background: transparent;
+  }
+  .s-tabs button:hover:not(:disabled) { color: var(--ink); background: transparent; }
+  .s-tabs button.on {
+    color: var(--ink);
+    border-bottom: 2px solid var(--mint-deep);
+    margin-bottom: -1px;
+    background: var(--paper);
+  }
+  .s-tabs button:disabled {
+    color: var(--rule);
+    cursor: not-allowed;
+  }
+
+  /* ─── Main pane ────────────────────────────── */
+  .s-main {
+    overflow: auto;
+    position: relative;
     min-height: 0;
+    padding: 22px 26px;
     display: flex;
     flex-direction: column;
+    min-height: 0;
   }
+
   .err {
     background: var(--mint-pale);
-    border-left: 3px solid #c0392b;
+    border-left: 3px solid var(--accent-system);
     padding: 10px 14px;
     font-size: 11px;
     margin-bottom: 10px;
@@ -179,14 +266,25 @@
     background: var(--paper);
     border: 1px solid var(--rule);
   }
-  .ft {
-    border-top: 1px solid var(--grey);
-    padding-top: 12px;
+
+  /* ─── Status bar (mirrors v1 .s-status) ────── */
+  .s-status {
+    padding: 9px 22px;
     display: flex;
     justify-content: space-between;
-    font-size: 9px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+    border-top: var(--r-thin);
+    font-size: var(--fs-label);
     color: var(--muted);
+    letter-spacing: 0.12em;
   }
+  .s-status .dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: var(--mint-deep);
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: 1px;
+  }
+  .s-status-right { display: inline-flex; gap: 4px; }
 </style>

@@ -8,46 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css">
 <style>
-:root {
-  --bg:        #F2F1EC;
-  --paper:     #FAF8F2;
-  --grey:      #DEDDD7;
-  --rule:      #C7C5BF;
-  --ink:       #1F2421;
-  --muted:     #8A8E87;
-  --mint:      #A6C9B5;
-  --mint-deep: #5E957A;
-  --mint-pale: #E2EEE7;
-  --mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, monospace;
-  color-scheme: light;
-}
-[data-theme="dark"] {
-  --bg:        #14171A;
-  --paper:     #1B1F23;
-  --grey:      #2A2F33;
-  --rule:      #3B4146;
-  --ink:       #E8E7E1;
-  --muted:     #8A8E87;
-  --mint:      #6B9F84;
-  --mint-deep: #8FC2A8;
-  --mint-pale: #243A30;
-  color-scheme: dark;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg:        #14171A;
-    --paper:     #1B1F23;
-    --grey:      #2A2F33;
-    --rule:      #3B4146;
-    --ink:       #E8E7E1;
-    --muted:     #8A8E87;
-    --mint:      #6B9F84;
-    --mint-deep: #8FC2A8;
-    --mint-pale: #243A30;
-    color-scheme: dark;
-  }
-}
 html { color-scheme: light dark; accent-color: var(--mint-deep); }
 ::selection { background: var(--mint-deep); color: var(--paper); }
 * { box-sizing: border-box; margin: 0; padding: 0; }

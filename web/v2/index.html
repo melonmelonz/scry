@@ -9,10 +9,17 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <script>
+    // Pre-paint theme to avoid a light-flash before the Svelte bundle mounts.
     try {
       var t = localStorage.getItem('scry-theme');
       if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
     } catch (e) {}
+    // Tag the document when iframed under the unified shell so v2's chrome
+    // can hide brand/theme/footer (the parent already provides those) and
+    // its own mint stripe (parent paints one).
+    if (/[?&]embed=1\b/.test(location.search)) {
+      document.documentElement.setAttribute('data-embedded', '1');
+    }
   </script>
 </head>
 <body>
