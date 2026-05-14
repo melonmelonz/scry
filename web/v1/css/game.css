@@ -111,6 +111,79 @@
   flex-direction: column;
 }
 
+/* ── Lightweight virtualized hex viewer inside the GAME pane ───────────
+   These styles are critical: the scroll container MUST have a bounded
+   height and overflow:auto, otherwise the ~20-million-pixel virtual
+   bottom-pad (1M rows × 20px for a 16 MiB cart) escapes its parent and
+   forces the browser to lay out a page-tall-of-the-Empire-State element,
+   which freezes the tab for several seconds on click. */
+.game-hex-mini {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--rule-soft);
+}
+.game-hex-mini-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 22px;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.game-hex-mini-title {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.game-hex-mini-jumpform {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.game-hex-mini-jumplab {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.game-hex-mini-jump {
+  font: inherit;
+  font-size: 11px;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  padding: 3px 8px;
+  width: 110px;
+}
+.game-hex-mini-jump:focus { outline: none; border-color: var(--mint-deep); }
+
+.game-hex-mini-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 6px 0;
+  font-variant-numeric: tabular-nums;
+  position: relative;
+}
+.game-hex-mini-pad { width: 1px; }
+.game-hex-mini-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 18ch;
+  gap: 16px;
+  height: 20px;
+  align-items: center;
+  padding: 0 22px;
+  font-size: 11px;
+  line-height: 20px;
+  white-space: pre;
+}
+.game-hex-mini-row .addr  { color: var(--muted); }
+.game-hex-mini-row .bytes { color: var(--ink); }
+.game-hex-mini-row .ascii { color: var(--muted); }
+
 /* Narrow screens: stack the panes. */
 @media (max-width: 1000px) {
   .game-split { grid-template-columns: 1fr; }
