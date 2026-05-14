@@ -39,11 +39,19 @@
     if (!window.biosBin) {
       throw new Error('biosBin not loaded');
     }
+    console.log('[scry/dbg/v2] canvas pre-setCanvas:',
+      'isConnected=', canvas?.isConnected,
+      'offsetW=', canvas?.offsetWidth, 'offsetH=', canvas?.offsetHeight,
+      'attrW=', canvas?.width, 'attrH=', canvas?.height);
     gba = new window.GameBoyAdvance();
     gba.keypad.eatInput = true;
     gba.logLevel = gba.LOG_ERROR;
     gba.setLogger((level, msg) => console.warn('[scry/v2/game/gba]', msg));
     gba.setCanvas(canvas);
+    console.log('[scry/dbg/v2] post-setCanvas:',
+      'indirectCanvas=', !!gba.indirectCanvas,
+      'targetCanvas=', !!gba.targetCanvas,
+      'drawCallback=', gba.video.drawCallback?.toString().slice(0, 80));
     gba.setBios(window.biosBin);
     return gba;
   }

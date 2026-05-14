@@ -88,8 +88,12 @@ function mount() {
     }
 
     if (!mounted[target] && factories[target]) {
+      console.time(`[scry/dbg] mount ${target}`);
       mounted[target] = factories[target]();
+      console.timeEnd(`[scry/dbg] mount ${target}`);
+      console.time(`[scry/dbg] appendChild ${target}`);
       main.appendChild(mounted[target]);
+      console.timeEnd(`[scry/dbg] appendChild ${target}`);
     }
     for (const k of Object.keys(mounted)) {
       mounted[k].style.display = (k === target) ? '' : 'none';

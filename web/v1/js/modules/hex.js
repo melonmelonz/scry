@@ -375,17 +375,23 @@ export function createHex() {
   // File subscribe first: the Store impl fires synchronously on subscribe,
   // so this seeds the entropy strip + initial render before any nav request
   // could land below.
-  fileStore.subscribe(() => {
+  const hexFileSub = () => {
     scroll.scrollTop = 0;
     scrollTop = 0;
     hoveredField = null;
     selectedOffset = -1;
     pendingFlash = null;
     clearHint('hex');
+    console.time('[scry/dbg] hex.buildEntropy');
     buildEntropy();
+    console.timeEnd('[scry/dbg] hex.buildEntropy');
+    console.time('[scry/dbg] hex.render');
     render();
+    console.timeEnd('[scry/dbg] hex.render');
     renderTip();
-  });
+  };
+  hexFileSub.__dbg = 'hex.fileSub';
+  fileStore.subscribe(hexFileSub);
 
   // Cross-module navigation: respond to navStore requests targeting 'hex'.
   // INSPECT publishes { route: 'hex', address: offset, len, ts } and the

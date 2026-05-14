@@ -97,6 +97,7 @@ export function createFileRail() {
     }
   }
 
+  render.__dbg = 'filerail.render';
   fileStore.subscribe(render);
   return host;
 }

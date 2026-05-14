@@ -1575,6 +1575,11 @@ class GameBoyAdvanceSoftwareRenderer {
 		// Nothing to do
 	}
 	finishDraw(caller) {
+		if (!this.__dbgF) this.__dbgF = 0;
+		this.__dbgF++;
+		if (this.__dbgF <= 3 || this.__dbgF % 60 === 0) {
+			console.log('[scry/dbg/sw] software.finishDraw frame#' + this.__dbgF + ' pixelData=' + (this.pixelData ? 'len=' + this.pixelData.data.length : 'null'));
+		}
 		this.bg[2].sx = this.bg[2].refx;
 		this.bg[2].sy = this.bg[2].refy;
 		this.bg[3].sx = this.bg[3].refx;

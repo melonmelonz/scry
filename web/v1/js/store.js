@@ -34,6 +34,12 @@ export class Store {
   }
 
   #notify() {
-    for (const fn of this.#subs) fn(this.#value);
+    let i = 0;
+    for (const fn of this.#subs) {
+      const label = `[scry/dbg] store#${i++} ${fn.__dbg || fn.name || 'anon'}`;
+      console.time(label);
+      try { fn(this.#value); }
+      finally { console.timeEnd(label); }
+    }
   }
 }

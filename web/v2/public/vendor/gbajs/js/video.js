@@ -184,6 +184,11 @@ class GameBoyAdvanceVideo {
 		return this.inVblank | (this.inHblank << 1) | (this.vcounter << 2);
 	}
 	finishDraw(pixelData) {
+		if (!this.__dbgF) this.__dbgF = 0;
+		this.__dbgF++;
+		if (this.__dbgF <= 3 || this.__dbgF % 60 === 0) {
+			console.log('[scry/dbg/video] finishDraw frame#' + this.__dbgF + ' context=' + (!!this.context) + ' pixelData.data.len=' + (pixelData && pixelData.data ? pixelData.data.length : 'null') + ' drawCallback=' + (this.drawCallback?.toString().slice(0, 60)));
+		}
 		this.context.putImageData(pixelData, 0, 0);
 		this.drawCallback();
 	}

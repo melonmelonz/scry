@@ -75,6 +75,7 @@ class GameBoyAdvance {
 		};
 	}
 	setCanvas(canvas) {
+		console.log('[scry/dbg/gba] setCanvas: offsetW=' + canvas.offsetWidth + ' offsetH=' + canvas.offsetHeight + ' attrW=' + canvas.width + ' attrH=' + canvas.height + ' isConnected=' + canvas.isConnected);
 		if (canvas.offsetWidth != 240 || canvas.offsetHeight != 160) {
 			var self = this;
 			this.indirectCanvas = document.createElement("canvas");
@@ -83,16 +84,27 @@ class GameBoyAdvance {
 			this.targetCanvas = canvas;
 			this.setCanvasDirect(this.indirectCanvas);
 			var targetContext = canvas.getContext("2d");
+			console.log('[scry/dbg/gba] setCanvas indirect path. targetContext=' + (!!targetContext));
+			var __dbgFrame = 0;
 			this.video.drawCallback = function () {
-				targetContext.drawImage(
-					self.indirectCanvas,
-					0,
-					0,
-					canvas.width,
-					canvas.height
-				);
+				__dbgFrame++;
+				if (__dbgFrame <= 3 || __dbgFrame % 60 === 0) {
+					console.log('[scry/dbg/gba] drawCallback frame#' + __dbgFrame + ' targetCtx=' + (!!targetContext) + ' indirect=' + (!!self.indirectCanvas) + ' canvas.isConnected=' + canvas.isConnected + ' canvas.w=' + canvas.width + ' canvas.h=' + canvas.height);
+				}
+				try {
+					targetContext.drawImage(
+						self.indirectCanvas,
+						0,
+						0,
+						canvas.width,
+						canvas.height
+					);
+				} catch (e) {
+					console.error('[scry/dbg/gba] drawImage threw:', e);
+				}
 			};
 		} else {
+			console.log('[scry/dbg/gba] setCanvas DIRECT path (canvas already 240x160)');
 			this.setCanvasDirect(canvas);
 			var self = this;
 		}

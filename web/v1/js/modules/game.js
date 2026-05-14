@@ -147,11 +147,14 @@ function createMiniHex() {
   }
 
   function setBytes(b) {
+    console.time('[scry/dbg] miniHex.setBytes');
     bytes = b;
     totalRows = b ? Math.ceil(b.byteLength / ROW_BYTES) : 0;
     titleEl.textContent = b ? `ROM (${b.byteLength.toLocaleString()} bytes)` : 'ROM (empty)';
     scroll.scrollTop = 0;
+    console.log('[scry/dbg] miniHex totalRows =', totalRows, 'virtualHeightPx =', totalRows * ROW_HEIGHT);
     render();
+    console.timeEnd('[scry/dbg] miniHex.setBytes');
   }
 
   function jumpTo(off) {
@@ -320,7 +323,7 @@ export function createGame() {
   // it scans for save type. Instead we just show the header + hex
   // viewer and wait for an explicit PLAY click. The user pays the freeze
   // when they ask for it, with a clear "loading ROM…" status.
-  fileStore.subscribe(state => {
+  const gameFileSub = (state) => {
     const bytes = state.bytes;
     if (gba && running) pause();
     if (!bytes) {
@@ -345,7 +348,9 @@ export function createGame() {
     miniHex.setBytes(bytes);
     miniHex.jumpTo(0xA0); // land on the cartridge header
     setStatus('cart ready \u00B7 click PLAY');
-  });
+  };
+  gameFileSub.__dbg = 'game.fileSub';
+  fileStore.subscribe(gameFileSub);
 
   return host;
 }
