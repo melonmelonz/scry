@@ -60,6 +60,9 @@ function renderSummary(elf) {
 }
 
 function renderSections(elf) {
+  // Largest size drives the bar scale. Treat BigInts as numbers (small ELFs
+  // never approach 2^53; clamp to 1 so empty/no-bits sections don't NaN).
+  const maxSize = Math.max(1, ...elf.sections.map(s => Number(s.sh_size) || 0));
   const cols = [
     { key: 'idx',    label: '#',       get: (_, i) => i, mono: true, muted: true },
     { key: 'name',   label: 'NAME',    get: s => s.name || '(unnamed)' },
@@ -69,12 +72,39 @@ function renderSections(elf) {
     { key: 'size',   label: 'SIZE',    get: s => num(s.sh_size), mono: true },
     { key: 'flags',  label: 'FLAGS',   get: s => sectionFlagsLabel(s.sh_flags) || '—', mono: true }
   ];
-  const rows = elf.sections.map((s, i) => tableRow(
-    cols.map(c => ({ ...c, get: c.key === 'idx' ? (() => String(i).padStart(2, '0')) : c.get })),
-    s, i
-  ));
+  const rows = elf.sections.map((s, i) => {
+    const offset = Number(s.sh_offset) >>> 0;
+    const size = Number(s.sh_size) || 0;
+    const jumpable = size > 0 && s.sh_type !== 0 && s.sh_type !== 8; // skip NULL + NOBITS
+    const node = tableRow(
+      cols.map(c => ({ ...c, get: c.key === 'idx' ? (() => String(i).padStart(2, '0')) : c.get })),
+      s, i,
+      jumpable ? {
+        clickable: true,
+        title: `Jump to offset 0x${offset.toString(16).toUpperCase()} in HEX`,
+        onclick: () => {
+          router.go('hex');
+          gotoIn('hex', offset, size);
+        }
+      } : {}
+    );
+    // Append a sparkline cell so the table reads at-a-glance which sections
+    // dominate the binary by size. Mint-deep fill on a tint-rail track.
+    const ratio = Math.max(0, Math.min(1, size / maxSize));
+    const fillWidth = Math.max(size > 0 ? 1 : 0, Math.round(ratio * 80));
+    const fill = el('span', { class: 'i-spark-fill' });
+    fill.style.width = `${fillWidth}px`;
+    const spark = el('span', { class: 'c c-spark' }, [
+      el('span', { class: 'i-spark-track' }, [fill])
+    ]);
+    node.appendChild(spark);
+    return node;
+  });
+  // Header gets a matching empty cell so the grid columns line up.
+  const head = tableHeader(cols);
+  head.appendChild(el('span', { class: 'c c-spark' }));
   return el('div', { class: 'i-table sect' }, [
-    tableHeader(cols),
+    head,
     ...rows
   ]);
 }

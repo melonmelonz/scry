@@ -92,6 +92,30 @@
   white-space: nowrap;
   overflow: hidden;
 }
+/* Sections table gets an extra 100px sparkline column. Override the base
+   grid so the bar cell lives outside the fr-distribution. */
+.i-table.sect .i-row {
+  grid-template-columns: 32px 1.8fr 0.9fr 1.1fr 1.1fr 0.9fr 0.6fr 100px;
+}
+.i-row .c-spark {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+}
+.i-spark-track {
+  display: inline-block;
+  width: 80px;
+  height: 2px;
+  background: var(--tint-rail);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.i-spark-fill {
+  display: block;
+  height: 100%;
+  background: var(--mint-deep);
+  transition: width var(--t-base);
+}
 .i-row .c {
   overflow: hidden;
   text-overflow: ellipsis;

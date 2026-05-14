@@ -244,7 +244,218 @@ pub fn detect_format(bytes: &[u8]) -> String {
     if bytes[..4] == [0xFE, 0xED, 0xFA, 0xCF] { return "macho".into(); }
     if bytes[..4] == [0xCE, 0xFA, 0xED, 0xFE] { return "macho".into(); }
     if bytes[..4] == [0x00, 0x61, 0x73, 0x6D] { return "wasm".into(); }
+    if bytes.len() >= 12 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WAVE" { return "wav".into(); }
+    if bytes.len() >= 8 && &bytes[..8] == [0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A] { return "png".into(); }
+    // GBA cartridges have no leading magic but every cart's byte 0xB2 is the
+    // Nintendo-fixed 0x96 sentinel. Sufficient for landing-page chip
+    // detection.
+    if bytes.len() >= 0xC0 && bytes[0xB2] == 0x96 { return "gba".into(); }
     "raw".into()
+}
+
+#[derive(Serialize)]
+pub struct GbaHeader {
+    pub title: String,
+    pub game_code: String,
+    pub maker_code: String,
+    pub fixed: u8,
+    pub fixed_ok: bool,
+    pub unit_code: u8,
+    pub device_type: u8,
+    pub version: u8,
+    pub checksum: u8,
+    pub checksum_computed: u8,
+    pub checksum_ok: bool,
+    pub rom_size: usize,
+}
+
+/// Parse the 0xC0-byte GBA cartridge header. The official Nintendo
+/// checksum is computed by adding bytes 0xA0..=0xBC, negating, and
+/// subtracting 0x19 (per AGB programming manual). We surface both the
+/// stored and computed values so the UI can show a verification.
+#[wasm_bindgen]
+pub fn parse_gba(bytes: &[u8]) -> Result<JsValue, JsValue> {
+    if bytes.len() < 0xC0 {
+        return Err(JsValue::from_str("too small for GBA header"));
+    }
+    let ascii_z = |off: usize, len: usize| -> String {
+        let mut s = String::with_capacity(len);
+        for i in 0..len {
+            let b = bytes[off + i];
+            if b == 0 { break; }
+            if (0x20..=0x7E).contains(&b) { s.push(b as char); } else { s.push('.'); }
+        }
+        s.trim().to_owned()
+    };
+    let title = ascii_z(0xA0, 12);
+    let game_code = ascii_z(0xAC, 4);
+    let maker_code = ascii_z(0xB0, 2);
+    let fixed = bytes[0xB2];
+    let unit_code = bytes[0xB3];
+    let device_type = bytes[0xB4];
+    let version = bytes[0xBC];
+    let checksum = bytes[0xBD];
+    // Spec: sum bytes 0xA0..=0xBC, then computed = -(sum) - 0x19, masked.
+    let mut sum: i32 = 0;
+    for i in 0xA0..=0xBC { sum = sum.wrapping_add(bytes[i] as i32); }
+    let computed = ((-sum - 0x19) & 0xFF) as u8;
+    let h = GbaHeader {
+        title,
+        game_code,
+        maker_code,
+        fixed,
+        fixed_ok: fixed == 0x96,
+        unit_code,
+        device_type,
+        version,
+        checksum,
+        checksum_computed: computed,
+        checksum_ok: computed == checksum,
+        rom_size: bytes.len(),
+    };
+    serde_wasm_bindgen::to_value(&h).map_err(|e| JsValue::from_str(&format!("{e}")))
+}
+
+#[derive(Serialize)]
+pub struct WavChunk {
+    pub id: String,
+    pub offset: usize,
+    pub size: u32,
+}
+
+#[derive(Serialize)]
+pub struct WavFmt {
+    pub format: u16,
+    pub channels: u16,
+    pub sample_rate: u32,
+    pub byte_rate: u32,
+    pub block_align: u16,
+    pub bits_per_sample: u16,
+}
+
+#[derive(Serialize)]
+pub struct WavEnvBin {
+    pub min: f32,
+    pub max: f32,
+    pub rms: f32,
+}
+
+#[derive(Serialize)]
+pub struct WavReport {
+    pub fmt: WavFmt,
+    pub chunks: Vec<WavChunk>,
+    pub total_frames: u64,
+    pub duration: f64,
+    pub data_offset: usize,
+    pub data_len: u32,
+    pub samples: Vec<f32>,     // mono float, channel 0
+    pub envelope: Vec<WavEnvBin>,
+}
+
+/// Hand-rolled RIFF/WAVE PCM decoder. Returns header chunk catalogue, a peak/
+/// RMS envelope across 256 buckets, and the mono Float32 sample buffer (first
+/// channel only) for Web Audio playback on the JS side.
+#[wasm_bindgen]
+pub fn decode_wav(bytes: &[u8]) -> Result<JsValue, JsValue> {
+    if bytes.len() < 12 { return Err(JsValue::from_str("WAV too short")); }
+    if &bytes[..4] != b"RIFF" || &bytes[8..12] != b"WAVE" {
+        return Err(JsValue::from_str("not a RIFF/WAVE file"));
+    }
+    let read_u16_le = |o: usize| u16::from_le_bytes([bytes[o], bytes[o+1]]);
+    let read_u32_le = |o: usize| u32::from_le_bytes([bytes[o], bytes[o+1], bytes[o+2], bytes[o+3]]);
+
+    let mut fmt: Option<WavFmt> = None;
+    let mut data_off: Option<usize> = None;
+    let mut data_len: u32 = 0;
+    let mut chunks: Vec<WavChunk> = Vec::new();
+
+    let mut off = 12usize;
+    while off + 8 <= bytes.len() {
+        let id = std::str::from_utf8(&bytes[off..off+4])
+            .map_err(|_| JsValue::from_str("bad chunk id"))?
+            .to_owned();
+        let size = read_u32_le(off + 4);
+        chunks.push(WavChunk { id: id.clone(), offset: off, size });
+        if id == "fmt " && off + 8 + 16 <= bytes.len() {
+            fmt = Some(WavFmt {
+                format:           read_u16_le(off + 8),
+                channels:         read_u16_le(off + 10),
+                sample_rate:      read_u32_le(off + 12),
+                byte_rate:        read_u32_le(off + 16),
+                block_align:      read_u16_le(off + 20),
+                bits_per_sample:  read_u16_le(off + 22),
+            });
+        } else if id == "data" {
+            data_off = Some(off + 8);
+            data_len = size;
+        }
+        // RIFF chunks are word-aligned.
+        let advance = 8usize + size as usize + (size & 1) as usize;
+        off = off.checked_add(advance).ok_or_else(|| JsValue::from_str("chunk overflow"))?;
+    }
+
+    let fmt = fmt.ok_or_else(|| JsValue::from_str("WAV missing fmt chunk"))?;
+    let data_off = data_off.ok_or_else(|| JsValue::from_str("WAV missing data chunk"))?;
+    if fmt.format != 1 && fmt.format != 3 {
+        return Err(JsValue::from_str(&format!("WAV format {} not supported", fmt.format)));
+    }
+    let bps = fmt.bits_per_sample as usize;
+    let block = fmt.block_align as usize;
+    if block == 0 { return Err(JsValue::from_str("WAV block_align is zero")); }
+    let total_frames = (data_len as usize / block).min((bytes.len() - data_off) / block);
+    let mut samples: Vec<f32> = Vec::with_capacity(total_frames);
+    for i in 0..total_frames {
+        let base = data_off + i * block;
+        let v: f32 = match (fmt.format, bps) {
+            (3, 32) => {
+                let arr = [bytes[base], bytes[base+1], bytes[base+2], bytes[base+3]];
+                f32::from_le_bytes(arr)
+            }
+            (1, 8)  => (bytes[base] as f32 - 128.0) / 128.0,
+            (1, 16) => i16::from_le_bytes([bytes[base], bytes[base+1]]) as f32 / 32768.0,
+            (1, 24) => {
+                let a = bytes[base]   as i32;
+                let b = bytes[base+1] as i32;
+                let c = bytes[base+2] as i32;
+                let mut s = a | (b << 8) | (c << 16);
+                if s & 0x800000 != 0 { s |= !0xFFFFFF; }
+                s as f32 / 8_388_608.0
+            }
+            (1, 32) => i32::from_le_bytes([bytes[base], bytes[base+1], bytes[base+2], bytes[base+3]]) as f32 / 2_147_483_648.0,
+            _ => 0.0,
+        };
+        samples.push(v);
+    }
+
+    let buckets = 256usize;
+    let stride = (samples.len() / buckets).max(1);
+    let mut env: Vec<WavEnvBin> = Vec::with_capacity(buckets);
+    for b in 0..buckets {
+        let start = b * stride;
+        let end = ((b + 1) * stride).min(samples.len());
+        if start >= end { env.push(WavEnvBin{min:0.0, max:0.0, rms:0.0}); continue; }
+        let mut mn = 0f32; let mut mx = 0f32; let mut sq = 0f32; let mut n = 0u32;
+        for &s in &samples[start..end] {
+            if s < mn { mn = s; }
+            if s > mx { mx = s; }
+            sq += s * s; n += 1;
+        }
+        let rms = if n > 0 { (sq / n as f32).sqrt() } else { 0.0 };
+        env.push(WavEnvBin { min: mn, max: mx, rms });
+    }
+
+    let sr = fmt.sample_rate as f64;
+    let report = WavReport {
+        fmt,
+        chunks,
+        total_frames: total_frames as u64,
+        duration: if sr > 0.0 { total_frames as f64 / sr } else { 0.0 },
+        data_offset: data_off,
+        data_len,
+        samples,
+        envelope: env,
+    };
+    serde_wasm_bindgen::to_value(&report).map_err(|e| JsValue::from_str(&format!("{e}")))
 }
 
 #[derive(Serialize)]

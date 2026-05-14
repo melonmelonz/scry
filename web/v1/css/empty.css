@@ -73,11 +73,50 @@
   border-radius: var(--r-1);
   cursor: pointer;
   transition: border-color var(--t-fast), background var(--t-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 .s-empty button.sample:hover {
   border-color: var(--mint-deep);
   background: var(--mint-pale);
 }
+.s-empty .sample-thumb-slot {
+  display: inline-flex;
+  align-items: stretch;
+  width: 60px;
+  height: 14px;
+}
+.s-empty .sample-thumb {
+  display: inline-grid;
+  grid-template-columns: repeat(12, 4px);
+  column-gap: 1px;
+  align-items: end;
+  width: 60px;
+  height: 14px;
+  background: var(--tint-rail);
+  padding: 1px;
+  box-sizing: border-box;
+  border-radius: 1px;
+}
+.s-empty .sample-thumb-bar {
+  display: block;
+  width: 4px;
+  min-height: 1px;
+  background: var(--mint-deep);
+}
+.s-empty .sample-thumb.shimmer .sample-thumb-bar {
+  background: var(--rule);
+  height: 40%;
+  animation: scry-shimmer 1.2s ease-in-out infinite;
+}
+.s-empty .sample-thumb.shimmer .sample-thumb-bar:nth-child(2n) { animation-delay: 120ms; }
+.s-empty .sample-thumb.shimmer .sample-thumb-bar:nth-child(3n) { animation-delay: 240ms; }
+@keyframes scry-shimmer {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 0.9; }
+}
+.s-empty .sample-label { display: inline-block; }
 .s-empty .samples-note {
   margin-top: 14px;
   font-size: 9px;

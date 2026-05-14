@@ -1,4 +1,4 @@
-import { fileStore } from '../stores/file.js';
+import { fileStore, clearFile } from '../stores/file.js';
 import { el, replaceChildren } from '../dom.js';
 import { createThemeToggle } from './theme.js';
 
@@ -17,13 +17,28 @@ export function createHeader() {
 
   function render(state) {
     const has = state.bytes !== null;
-    const brand = el('span', { class: 's-brand', text: 'scry' });
+    // Brand doubles as "back to import" when a file is loaded. Visible
+    // affordance: the cursor and hover style change when there's somewhere
+    // to go. The text and dot stay the same so the chrome doesn't shift.
+    const brand = el('span', {
+      class: has ? 's-brand s-brand-clickable' : 's-brand',
+      text: 'scry',
+      title: has ? 'Clear file \u00B7 back to import' : '',
+      onclick: has ? () => clearFile() : null,
+    });
 
     let meta;
     if (has) {
+      const close = el('button', {
+        class: 's-close',
+        text: 'CLOSE',
+        title: 'Clear file \u00B7 back to import',
+        onclick: () => clearFile(),
+      });
       meta = el('span', { class: 's-meta' }, [
         el('span', {}, ['FILE', el('span', { class: 'v', text: state.name })]),
-        el('span', {}, ['SIZE', el('span', { class: 'v', text: sizeFmt(state.bytes.byteLength) })])
+        el('span', {}, ['SIZE', el('span', { class: 'v', text: sizeFmt(state.bytes.byteLength) })]),
+        close
       ]);
     } else {
       meta = el('span', { class: 's-meta' }, [

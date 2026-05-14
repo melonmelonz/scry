@@ -4,33 +4,30 @@
   // serves, and the in-browser-synthesized RV32 demo. Sources v1's
   // demo-builder so there is exactly one source of truth.
   import { buildDemoElf, DEMO_NAME } from '../../../v1/js/demo/rv32_demo.js';
+  import { ensureWasm } from './wasm.js';
+  import { readFile } from './loadFile.js';
 
   let { onfile } = $props();
 
-  const MAX_BYTES = 64 * 1024 * 1024;
   // Mirrors v1's whitelist — defense in depth even though the manifest is
   // ours at build time.
-  const SAMPLE_NAME_OK = /^[A-Za-z0-9._-]+\.elf$/;
+  const SAMPLE_NAME_OK = /^[A-Za-z0-9._-]+\.(elf|wav|gba)$/;
 
   let hover = $state(false);
   let err = $state('');
   let samples = $state([]);
   let loading = $state('');
-
-  function fmt(n) {
-    if (n < 1024) return n + ' B';
-    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KiB';
-    return (n / 1024 / 1024).toFixed(1) + ' MiB';
-  }
+  // file -> Float32Array of 12 entropy values. Populated lazily on mount.
+  let sampleSparks = $state({});
 
   async function accept(file) {
     err = '';
-    if (file.size > MAX_BYTES) {
-      err = `file too large (${fmt(file.size)} > ${fmt(MAX_BYTES)})`;
-      return;
+    try {
+      const payload = await readFile(file);
+      onfile?.(payload);
+    } catch (e) {
+      err = e.message || String(e);
     }
-    const buf = await file.arrayBuffer();
-    onfile?.({ name: file.name, bytes: new Uint8Array(buf) });
   }
 
   function onDrop(e) {
@@ -77,6 +74,8 @@
   }
 
   // Best-effort manifest fetch. Silently no-op if absent (dev server, etc).
+  // After listing samples, fetch each one in parallel and compute a 12-block
+  // entropy sparkline. Cached client-side for the session.
   $effect(() => {
     let cancelled = false;
     (async () => {
@@ -84,7 +83,25 @@
         const res = await fetch('../v1/samples/manifest.json');
         if (!res.ok) return;
         const list = await res.json();
-        if (!cancelled && Array.isArray(list)) samples = list;
+        if (cancelled || !Array.isArray(list)) return;
+        samples = list;
+
+        const core = await ensureWasm();
+        if (cancelled) return;
+        await Promise.all(list.map(async (s) => {
+          if (!SAMPLE_NAME_OK.test(s.file)) return;
+          try {
+            const r = await fetch(`../v1/samples/${encodeURIComponent(s.file)}`);
+            if (!r.ok) return;
+            const bytes = new Uint8Array(await r.arrayBuffer());
+            if (cancelled) return;
+            const block = Math.max(1, Math.ceil(bytes.length / 12));
+            const arr = core.entropy_blocks(bytes, block);
+            // Spread into a plain Array so Svelte reactivity sees a new
+            // object identity rather than mutating a typed-array field.
+            sampleSparks = { ...sampleSparks, [s.file]: Array.from(arr) };
+          } catch { /* ignore individual sample failure */ }
+        }));
       } catch { /* ignore */ }
     })();
     return () => { cancelled = true; };
@@ -102,7 +119,7 @@
     aria-label="Drop a binary"
   >
     <h2>Drop a binary to begin.</h2>
-    <p class="subtitle">ELF &middot; raw bytes &middot; <span class="muted">(rust → wasm)</span></p>
+    <p class="subtitle">ELF &middot; WAV &middot; GBA &middot; raw bytes &middot; <span class="muted">(rust → wasm)</span></p>
 
     <div class="actions">
       <label class="pick">
@@ -120,9 +137,22 @@
             <button
               type="button"
               class="sample"
-              title="{s.desc} — {s.insns} instructions"
+              title={s.insns > 0 ? `${s.desc} — ${s.insns} instructions` : s.desc}
               onclick={() => loadSample(s.file)}
-            >{s.file}</button>
+            >
+              <span class="sample-name">{s.file}</span>
+              <span class="sparkline" aria-hidden="true">
+                {#if sampleSparks[s.file]}
+                  {#each sampleSparks[s.file] as e}
+                    <span class="bar" style="height: {Math.max(2, e * 14)}px"></span>
+                  {/each}
+                {:else}
+                  {#each Array(12) as _, i}
+                    <span class="bar shimmer" style="animation-delay: {i * 40}ms"></span>
+                  {/each}
+                {/if}
+              </span>
+            </button>
           {/each}
         </div>
         <p class="samples-note">
@@ -226,6 +256,35 @@
     transition: border-color var(--t-fast), background var(--t-fast);
   }
   .sample:hover { border-color: var(--mint-deep); background: var(--mint-pale); }
+  .sample {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sample-name { white-space: nowrap; }
+  .sparkline {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 1px;
+    height: 14px;
+    background: var(--tint-rail);
+    padding: 0 2px;
+    border: 1px solid var(--rule);
+  }
+  .sparkline .bar {
+    width: 4px;
+    background: var(--mint-deep);
+    display: inline-block;
+  }
+  .sparkline .bar.shimmer {
+    height: 6px;
+    background: var(--rule);
+    animation: spark-shimmer 1.2s ease-in-out infinite;
+  }
+  @keyframes spark-shimmer {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 1.0; }
+  }
   .samples-note {
     margin-top: 14px;
     font-size: 9px;

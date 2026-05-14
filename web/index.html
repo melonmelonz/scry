@@ -32,6 +32,14 @@ body::before {
   background: var(--mint-deep);
   z-index: 100;
   pointer-events: none;
+  transform-origin: left center;
+}
+body.boot-stripe::before {
+  transform: scaleX(0);
+  animation: stripe-wipe 600ms cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+@keyframes stripe-wipe {
+  to { transform: scaleX(1); }
 }
 
 /* Top chrome ----------------------------------------------------------- */
@@ -130,12 +138,31 @@ body::before {
   justify-content: center;
   cursor: pointer;
   padding: 0;
+  position: relative;
+  overflow: hidden;
   transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
 }
 .theme-toggle:hover {
   color: var(--ink);
   border-color: var(--mint-deep);
   background: var(--mint-pale);
+}
+.theme-toggle .icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  opacity: 0;
+  transition: opacity 200ms ease, transform 240ms ease;
+  pointer-events: none;
+  line-height: 1;
+}
+.theme-toggle .icon.on {
+  opacity: 1;
+  transform: translate(-50%, -50%) rotate(0deg);
 }
 
 /* Frame area ----------------------------------------------------------- */
@@ -145,15 +172,21 @@ body::before {
   position: relative;
 }
 iframe.surface {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   border: 0;
   display: block;
   background: var(--bg);
   opacity: 0;
-  transition: opacity 220ms ease;
+  pointer-events: none;
+  transition: opacity var(--t-swap);
 }
-iframe.surface.ready { opacity: 1; }
+iframe.surface.ready {
+  opacity: 1;
+  pointer-events: auto;
+}
 
 /* Footer --------------------------------------------------------------- */
 .foot {
@@ -196,13 +229,17 @@ iframe.surface.ready { opacity: 1; }
     </button>
   </div>
 
-  <button class="demo-btn" id="demo-btn" type="button" title="Load the bundled RV32 demo ELF">DEMO</button>
   <a class="scope-link" href="scope.html">Scope &amp; wireframes &rarr;</a>
-  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">&#x263E;</button>
+  <a class="scope-link" href="breakdown.html">Tech breakdown &rarr;</a>
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">
+    <span class="icon" id="icon-moon" aria-hidden="true">&#x263E;</span>
+    <span class="icon" id="icon-sun" aria-hidden="true">&#x263C;</span>
+  </button>
 </header>
 
 <main class="frame">
-  <iframe class="surface" id="surface" title="scry workbench"></iframe>
+  <iframe class="surface" id="surface-a" title="scry workbench"></iframe>
+  <iframe class="surface" id="surface-b" title="scry workbench" aria-hidden="true"></iframe>
 </main>
 
 <footer class="foot">
@@ -213,14 +250,42 @@ iframe.surface.ready { opacity: 1; }
 
 <script>
 (function () {
-  var KEY     = 'scry-theme';
-  var MODEKEY = 'scry-mode';
-  var iframe  = document.getElementById('surface');
-  var btnV1   = document.getElementById('mode-v1');
-  var btnV2   = document.getElementById('mode-v2');
-  var btnT    = document.getElementById('theme-toggle');
-  var btnDemo = document.getElementById('demo-btn');
-  var mq      = window.matchMedia('(prefers-color-scheme: dark)');
+  var KEY      = 'scry-theme';
+  var MODEKEY  = 'scry-mode';
+  var BOOTKEY  = 'scry-shell-booted';
+  var slotA    = document.getElementById('surface-a');
+  var slotB    = document.getElementById('surface-b');
+  var btnV1    = document.getElementById('mode-v1');
+  var btnV2    = document.getElementById('mode-v2');
+  var btnT     = document.getElementById('theme-toggle');
+  var iconMoon = document.getElementById('icon-moon');
+  var iconSun  = document.getElementById('icon-sun');
+  var mq       = window.matchMedia('(prefers-color-scheme: dark)');
+
+  var currentMode = null;          // 'v1' | 'v2' | null
+  var activeSlot  = slotA;         // the slot currently visible
+
+  // --- mint stripe boot wipe (once per session) ---------------------
+  try {
+    if (!sessionStorage.getItem(BOOTKEY)) {
+      document.body.classList.add('boot-stripe');
+      sessionStorage.setItem(BOOTKEY, '1');
+    }
+  } catch (e) {}
+
+  // --- helpers ------------------------------------------------------
+  function visibleSlot() {
+    // The slot that is currently meant to be visible (matches currentMode).
+    if (slotA.getAttribute('data-mode') === currentMode) return slotA;
+    if (slotB.getAttribute('data-mode') === currentMode) return slotB;
+    return activeSlot;
+  }
+  function postToVisible(msg) {
+    var s = visibleSlot();
+    try {
+      s && s.contentWindow && s.contentWindow.postMessage(msg, location.origin);
+    } catch (e) {}
+  }
 
   // --- mode ---------------------------------------------------------
   // URL hash wins, then localStorage, then default.
@@ -241,24 +306,49 @@ iframe.surface.ready { opacity: 1; }
     }
     btnV1.classList.toggle('on', m === 'v1');
     btnV2.classList.toggle('on', m === 'v2');
+    btnV1.setAttribute('aria-selected', m === 'v1' ? 'true' : 'false');
+    btnV2.setAttribute('aria-selected', m === 'v2' ? 'true' : 'false');
+
+    if (currentMode === m && activeSlot.getAttribute('data-mode') === m) return;
+
     // ?embed=1 lets v1/v2 hide their own brand + theme toggle so we don't
     // get double chrome.
     var target = m + '/?embed=1';
-    if (iframe.getAttribute('data-mode') !== m) {
-      iframe.classList.remove('ready');
-      iframe.setAttribute('data-mode', m);
-      iframe.src = target;
-    }
-  }
 
-  btnDemo.addEventListener('click', function () {
-    try {
-      iframe.contentWindow.postMessage(
-        { type: 'scry-load-demo' },
-        location.origin
-      );
-    } catch (e) {}
-  });
+    // Pick the inactive slot to mount the new engine in.
+    var incoming = (activeSlot === slotA) ? slotB : slotA;
+    var outgoing = activeSlot;
+
+    incoming.setAttribute('data-mode', m);
+    // Only set src if it isn't already pointing at this engine.
+    if (incoming.getAttribute('data-target') !== target) {
+      incoming.setAttribute('data-target', target);
+      incoming.src = target;
+    } else {
+      // Already loaded — just bring it up.
+      incoming.classList.add('ready');
+    }
+    incoming.setAttribute('aria-hidden', 'false');
+
+    // Fade out the previous frame in parallel.
+    if (outgoing !== incoming && outgoing.getAttribute('data-mode')) {
+      outgoing.classList.remove('ready');
+      outgoing.setAttribute('aria-hidden', 'true');
+      var stale = outgoing;
+      // After the crossfade completes, drop its src so it stops running.
+      setTimeout(function () {
+        // Guard: only unload if it's still the outgoing slot.
+        if (stale !== activeSlot) {
+          try { stale.removeAttribute('src'); } catch (e) {}
+          stale.removeAttribute('data-mode');
+          stale.removeAttribute('data-target');
+        }
+      }, 250);
+    }
+
+    activeSlot  = incoming;
+    currentMode = m;
+  }
 
   btnV1.addEventListener('click', function () { setMode('v1'); });
   btnV2.addEventListener('click', function () { setMode('v2'); });
@@ -272,17 +362,19 @@ iframe.surface.ready { opacity: 1; }
   }
   function renderToggle() {
     var t = currentTheme();
-    btnT.textContent = t === 'dark' ? '\u263C' : '\u263E';
-    btnT.title = t === 'dark' ? 'Switch to light' : 'Switch to dark';
+    // In dark mode, show the sun (so the user can switch to light).
+    // In light mode, show the moon.
+    var darkActive = (t === 'dark');
+    iconSun.classList.toggle('on',  darkActive);
+    iconMoon.classList.toggle('on', !darkActive);
+    btnT.title = darkActive ? 'Switch to light' : 'Switch to dark';
+    btnT.setAttribute('aria-label', darkActive ? 'Switch to light mode' : 'Switch to dark mode');
   }
   function applyTheme(t) {
     document.documentElement.setAttribute('data-theme', t);
     try { localStorage.setItem(KEY, t); } catch (e) {}
-    // Push to the iframe so it doesn't have to wait for a reload.
-    try {
-      iframe.contentWindow &&
-        iframe.contentWindow.postMessage({ type: 'scry-theme', value: t }, location.origin);
-    } catch (e) {}
+    // Push to the visible iframe so it doesn't have to wait for a reload.
+    postToVisible({ type: 'scry-theme', value: t });
     renderToggle();
   }
   btnT.addEventListener('click', function () {
@@ -294,15 +386,20 @@ iframe.surface.ready { opacity: 1; }
 
   // On iframe load, sync current theme into it (it has its own pre-paint
   // script but a freshly mounted iframe may have raced us).
-  iframe.addEventListener('load', function () {
-    iframe.classList.add('ready');
-    try {
-      iframe.contentWindow.postMessage(
-        { type: 'scry-theme', value: currentTheme() },
-        location.origin
-      );
-    } catch (e) {}
-  });
+  function onSlotLoad(slot) {
+    return function () {
+      if (!slot.getAttribute('data-mode')) return;
+      slot.classList.add('ready');
+      try {
+        slot.contentWindow && slot.contentWindow.postMessage(
+          { type: 'scry-theme', value: currentTheme() },
+          location.origin
+        );
+      } catch (e) {}
+    };
+  }
+  slotA.addEventListener('load', onSlotLoad(slotA));
+  slotB.addEventListener('load', onSlotLoad(slotB));
 
   // --- boot ---------------------------------------------------------
   renderToggle();

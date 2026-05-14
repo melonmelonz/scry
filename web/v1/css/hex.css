@@ -1,6 +1,6 @@
 .hex-wrap {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto;
   height: 100%;
   padding: 0 22px 22px;
 }
@@ -39,6 +39,62 @@
 }
 .hex-bar input:focus { outline: none; border-color: var(--mint-deep); }
 
+/* ─── Entropy strip ───────────────────────────── */
+.hex-entropy {
+  position: relative;
+  height: 36px;
+  margin: 0 0 10px;
+  background: var(--tint-rail);
+  border: 1px solid var(--grey);
+  border-radius: var(--r-1);
+  overflow: hidden;
+  display: none;
+}
+.hex-entropy.on { display: block; }
+.hex-entropy-bars {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  /* 64 columns; the 1px gutter is created by column-gap. */
+  grid-template-columns: repeat(64, 1fr);
+  column-gap: 1px;
+  padding: 3px 4px;
+}
+.hex-entropy-bar {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-end;
+  justify-content: stretch;
+  height: 100%;
+  transition: background var(--t-fast);
+}
+.hex-entropy-bar:hover { background: var(--tint-row); }
+.hex-entropy-bar:focus-visible { outline: 1px solid var(--mint-deep); outline-offset: -1px; }
+.hex-entropy-fill {
+  display: block;
+  width: 100%;
+  min-height: 1px;
+  background: var(--ink);
+  /* Subtle fade-in when first built. */
+  transition: height var(--t-base);
+}
+.hex-entropy-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--mint-deep);
+  pointer-events: none;
+  transform: translateX(-1px);
+  transition: left var(--t-fast), opacity var(--t-fast);
+  opacity: 0;
+}
+
 .hex-scroll {
   overflow-y: auto;
   overflow-x: hidden;
@@ -56,7 +112,9 @@
   line-height: 20px;
   height: 20px;
   white-space: nowrap;
+  transition: background 80ms ease;
 }
+.hex-row:hover { background: var(--tint-row); }
 .hex-row .addr { color: var(--muted); }
 .hex-row .bytes { letter-spacing: 0.04em; }
 .hex-row .bytes .ovr { background: var(--mint-pale); padding: 1px 1px; }
@@ -73,6 +131,24 @@
   background: var(--mint-deep);
   color: var(--paper);
   padding: 1px 1px;
+}
+
+/* ─── Jump flash (cross-pane choreography) ────── */
+/* Rows and cells start at the tint then fade to transparent. The `flash`
+   class is added by hex.js after scroll lands; a forced reflow restarts the
+   transition each call so repeated jumps still pulse. */
+.hex-row.flash {
+  background: var(--tint-drop);
+  transition: background 400ms ease;
+}
+.hex-row.flash:hover { background: var(--tint-drop); }
+@keyframes hex-cell-flash {
+  from { background: var(--tint-drop); }
+  to   { background: transparent; }
+}
+.hex-row .bytes [data-fi].flash,
+.hex-row .ascii [data-fi].flash {
+  animation: hex-cell-flash 400ms ease forwards;
 }
 
 /* Overlay tip */

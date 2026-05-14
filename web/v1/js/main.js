@@ -8,6 +8,8 @@ import { createInspect } from './modules/inspect.js';
 import { createDisasm } from './modules/disasm.js';
 import { createEmu } from './modules/emu.js';
 import { createTrace } from './modules/trace.js';
+import { createWave } from './modules/wave.js';
+import { createGame } from './modules/game.js';
 import { fileStore, ingestFile, loadFile } from './stores/file.js';
 import { router } from './stores/router.js';
 import { detectFormat } from './format/detect.js';
@@ -45,15 +47,20 @@ function mount() {
     inspect: createInspect,
     disasm:  createDisasm,
     emu:     createEmu,
-    trace:   createTrace
+    trace:   createTrace,
+    wave:    createWave,
+    game:    createGame
   };
   const mounted = {};
 
   function defaultRouteForFile() {
     const bytes = fileStore.get().bytes;
     if (!bytes) return 'empty';
-    // ELF lands on inspect; everything else on hex.
-    return detectFormat(bytes) === 'elf' ? 'inspect' : 'hex';
+    const fmt = detectFormat(bytes);
+    if (fmt === 'elf') return 'inspect';
+    if (fmt === 'wav') return 'wave';
+    if (fmt === 'gba') return 'game';
+    return 'hex';
   }
 
   function showRoute(route) {
@@ -64,9 +71,15 @@ function mount() {
     if (!hasFile && target !== 'empty') target = 'empty';
     if (hasFile && target === 'empty') target = defaultRouteForFile();
 
-    // Re-gate against disabled routes (e.g. inspect when format isn't ELF).
-    if (hasFile && target === 'inspect' && detectFormat(fileStore.get().bytes) !== 'elf') {
-      target = 'hex';
+    // Re-gate against disabled routes. If the current tab isn't valid for the
+    // newly-loaded format, fall back to the format's "best landing" tab —
+    // never silently drop the user into HEX when (say) WAVE was the natural
+    // home for the file they just opened.
+    if (hasFile) {
+      const fmt = detectFormat(fileStore.get().bytes);
+      if (target === 'inspect' && fmt !== 'elf') target = defaultRouteForFile();
+      if (target === 'wave'    && fmt !== 'wav') target = defaultRouteForFile();
+      if (target === 'game'    && fmt !== 'gba') target = defaultRouteForFile();
     }
 
     if (target !== route) {

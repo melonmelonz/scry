@@ -23,6 +23,32 @@
   color: var(--mint-deep);
   font-size: var(--fs-chrome-2);
 }
+.s-brand-clickable {
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+.s-brand-clickable:hover { color: var(--mint-deep); }
+.s-brand-clickable:hover::before {
+  /* Brand glyph flips to a back-arrow on hover when something will happen. */
+  content: '\u21A9 ';
+}
+.s-close {
+  font-family: inherit;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--rule);
+  padding: 3px 8px;
+  cursor: pointer;
+  margin-left: var(--sp-3);
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+.s-close:hover {
+  color: var(--mint-deep);
+  border-color: var(--mint-deep);
+  background: var(--mint-pale);
+}
 .s-meta {
   display: flex;
   gap: var(--sp-5);
@@ -121,6 +147,14 @@
   color: var(--ink);
 }
 .s-rail .row .v .mint { color: var(--mint-deep); }
+.s-rail-summary {
+  font-size: var(--fs-label);
+  color: var(--muted);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  margin-top: var(--sp-2);
+  line-height: 1.5;
+}
 
 .s-main {
   overflow: auto;
@@ -152,6 +186,14 @@
 }
 .s-status .sep { color: var(--rule); }
 .s-status-right { display: inline-flex; gap: 4px; }
+.s-status .boot { color: var(--ink); letter-spacing: 0.06em; }
+.s-status .boot::after {
+  content: '\2588';
+  margin-left: 2px;
+  color: var(--mint-deep);
+  animation: scry-caret 800ms steps(2) infinite;
+}
+@keyframes scry-caret { 50% { opacity: 0; } }
 
 /* ─── Global drag-drop overlay ────────────────── */
 .global-drop {

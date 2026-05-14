@@ -44,6 +44,11 @@ if [ -f "$ROOT/docs/scope.html" ]; then
   cp "$ROOT/docs/scope.html" "$ROOT/web/dist/scope.html"
 fi
 
+# Technical breakdown page at the root.
+if [ -f "$ROOT/docs/breakdown.html" ]; then
+  cp "$ROOT/docs/breakdown.html" "$ROOT/web/dist/breakdown.html"
+fi
+
 # v1 — pure JS/CSS/HTML.
 if [ -d "$ROOT/web/v1" ]; then
   rsync -a "$ROOT/web/v1/" "$ROOT/web/dist/v1/"

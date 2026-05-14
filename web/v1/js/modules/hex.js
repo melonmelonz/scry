@@ -2,12 +2,16 @@ import { fileStore } from '../stores/file.js';
 import { detectFormat } from '../format/detect.js';
 import { visibleRange } from '../hex/virtualize.js';
 import { pickOverlay, findOverlayAt, decodeField, formatDecoded } from '../hex/overlays.js';
+import { entropyBlocks, blockOffset } from '../hex/entropy.js';
 import { el, replaceChildren } from '../dom.js';
 import { setHint, clearHint } from '../stores/hint.js';
+import { navStore } from '../stores/nav.js';
+import { router } from '../stores/router.js';
 
 const ROW_HEIGHT = 20;
 const BYTES_PER_ROW = 16;
 const OVERSCAN = 6;
+const ENTROPY_BLOCKS = 64;
 
 function hex2(n) { return n.toString(16).padStart(2, '0').toUpperCase(); }
 function hex8(n) { return '0x' + (n >>> 0).toString(16).padStart(8, '0').toUpperCase(); }
@@ -79,9 +83,16 @@ export function createHex() {
     input
   ]);
   const bar = el('header', { class: 'hex-bar' }, [titleEl, form]);
+
+  // Entropy strip — 64 bars + a position marker. Built once; bar heights and
+  // marker position are mutated in place.
+  const entropyBars = el('div', { class: 'hex-entropy-bars' });
+  const entropyMarker = el('div', { class: 'hex-entropy-marker' });
+  const entropyStrip = el('div', { class: 'hex-entropy' }, [entropyBars, entropyMarker]);
+
   const scroll = el('div', { class: 'hex-scroll' });
   const tipHost = el('div', { class: 'tip-host' });
-  const wrap = el('section', { class: 'hex-wrap' }, [bar, scroll, tipHost]);
+  const wrap = el('section', { class: 'hex-wrap' }, [bar, entropyStrip, scroll, tipHost]);
 
   const topSpacer = document.createElement('div');
   const bottomSpacer = document.createElement('div');
@@ -93,6 +104,10 @@ export function createHex() {
   let rowPool = [];
   let hoveredField = null;
   let selectedOffset = -1;
+  let lastEntropy = null;
+  // Pending jump (set by external nav, applied once scroll viewport is sized
+  // and bytes are present). { offset, len } | null.
+  let pendingFlash = null;
 
   function bytes() {
     return fileStore.get().bytes ?? new Uint8Array(0);
@@ -114,7 +129,7 @@ export function createHex() {
   function render() {
     const b = bytes();
     const ov = overlays();
-    titleEl.textContent = `HEX · ${b.byteLength.toLocaleString()} bytes`;
+    titleEl.textContent = `HEX \u00B7 ${b.byteLength.toLocaleString()} bytes`;
 
     const range = visibleRange({
       scrollTop, viewportHeight,
@@ -138,14 +153,18 @@ export function createHex() {
       const endByte = Math.min(startByte + BYTES_PER_ROW, b.byteLength);
       const slice = b.subarray(startByte, endByte);
       const built = buildRow(rowIdx * BYTES_PER_ROW, rowIdx * BYTES_PER_ROW, slice, ov);
-      // Replace the pooled row's contents.
+      // Replace the pooled row's contents. Preserve any in-flight .flash class
+      // so an active flash on this pooled DOM node doesn't get nuked mid-fade
+      // — flashRange always retags by row index before each animation step.
       rowPool[i].className = 'hex-row';
+      rowPool[i].dataset.row = String(rowIdx);
       replaceChildren(rowPool[i], Array.from(built.childNodes));
       if (rowPool[i].parentNode !== scroll) {
         scroll.insertBefore(rowPool[i], bottomSpacer);
       }
     }
     paintHotCells();
+    updateMarker();
   }
 
   function paintHotCells() {
@@ -187,6 +206,125 @@ export function createHex() {
     replaceChildren(tipHost, [buildTip(hoveredField, bytes())]);
   }
 
+  // ─── Entropy strip ───────────────────────────
+  function buildEntropy() {
+    const b = bytes();
+    if (b.byteLength === 0) {
+      lastEntropy = null;
+      replaceChildren(entropyBars, []);
+      entropyStrip.classList.remove('on');
+      return;
+    }
+    const e = entropyBlocks(b, ENTROPY_BLOCKS);
+    lastEntropy = e;
+    const total = b.byteLength;
+    const bars = [];
+    for (let i = 0; i < ENTROPY_BLOCKS; i++) {
+      const ratio = Math.max(0, Math.min(1, e[i] / 8));
+      const start = blockOffset(i, total, ENTROPY_BLOCKS);
+      const endNext = blockOffset(i + 1, total, ENTROPY_BLOCKS);
+      const blockLen = Math.max(1, endNext - start);
+      const bar = el('button', {
+        class: 'hex-entropy-bar',
+        type: 'button',
+        title: `block ${i} \u00B7 offset 0x${start.toString(16).toUpperCase()} \u00B7 entropy ${e[i].toFixed(1)} bits`,
+        dataset: { block: String(i), offset: String(start), len: String(blockLen) }
+      });
+      // Inner fill controls height so the click target remains a full-height
+      // 36px column even where entropy is near zero.
+      const fill = el('span', { class: 'hex-entropy-fill' });
+      fill.style.height = `${(ratio * 100).toFixed(1)}%`;
+      bar.appendChild(fill);
+      bars.push(bar);
+    }
+    replaceChildren(entropyBars, bars);
+    entropyStrip.classList.add('on');
+  }
+
+  function updateMarker() {
+    const b = bytes();
+    if (b.byteLength === 0) {
+      entropyMarker.style.opacity = '0';
+      return;
+    }
+    const firstByte = Math.floor(scrollTop / ROW_HEIGHT) * BYTES_PER_ROW;
+    const ratio = Math.max(0, Math.min(1, firstByte / Math.max(1, b.byteLength)));
+    entropyMarker.style.opacity = '1';
+    entropyMarker.style.left = `${(ratio * 100).toFixed(2)}%`;
+  }
+
+  entropyBars.addEventListener('click', (e) => {
+    const t = e.target.closest('.hex-entropy-bar');
+    if (!t) return;
+    const offset = Number(t.dataset.offset);
+    const len = Number(t.dataset.len);
+    jumpToOffset(offset, len);
+  });
+
+  // ─── Jump + flash ──────────────────────────────
+  // Scroll the offset to roughly the top third of the viewport, then paint a
+  // fade flash on the affected rows and individual byte cells.
+  function jumpToOffset(offset, len = 1) {
+    const b = bytes();
+    if (!b.byteLength) return;
+    const clamped = Math.max(0, Math.min(offset, b.byteLength - 1));
+    const targetRow = Math.floor(clamped / BYTES_PER_ROW);
+    // Top-third placement keeps the destination visually anchored without
+    // bumping it flush against the entropy strip.
+    const thirdOffset = Math.max(0, Math.floor(viewportHeight / 3));
+    const top = Math.max(0, targetRow * ROW_HEIGHT - thirdOffset);
+    try {
+      scroll.scrollTo({ top, behavior: 'smooth' });
+    } catch (_) {
+      scroll.scrollTop = top;
+    }
+    // Defer the flash a frame so the virtualizer has a chance to render the
+    // destination rows after scroll lands.
+    pendingFlash = { offset: clamped, len };
+    requestAnimationFrame(() => {
+      // Wait one more frame so the smooth-scroll's first paint has settled
+      // and any newly-mounted rows exist in the DOM.
+      requestAnimationFrame(() => doFlash());
+    });
+  }
+
+  function doFlash() {
+    if (!pendingFlash) return;
+    const { offset, len } = pendingFlash;
+    pendingFlash = null;
+    const startRow = Math.floor(offset / BYTES_PER_ROW);
+    const endRow = Math.floor((offset + Math.max(1, len) - 1) / BYTES_PER_ROW);
+    // Row-level flash.
+    rowPool.forEach(node => {
+      const r = Number(node.dataset.row);
+      if (r >= startRow && r <= endRow) {
+        node.classList.remove('flash');
+        // Force a reflow so re-adding the class restarts the transition.
+        void node.offsetWidth;
+        node.classList.add('flash');
+        // Clean up the class once the fade finishes so re-pooled rows don't
+        // inherit a stale animation state.
+        setTimeout(() => node.classList.remove('flash'), 480);
+      }
+    });
+    // Cell-level flash for the precise byte range.
+    const endByte = offset + Math.max(1, len);
+    const cells = scroll.querySelectorAll('[data-fi]');
+    cells.forEach(cell => {
+      const fi = Number(cell.dataset.fi);
+      if (fi >= offset && fi < endByte) {
+        cell.classList.remove('flash');
+        void cell.offsetWidth;
+        cell.classList.add('flash');
+        setTimeout(() => cell.classList.remove('flash'), 480);
+      }
+    });
+  }
+
+  // Expose for cross-pane choreography. Callers like INSPECT may invoke this
+  // directly after a router.go('hex').
+  wrap.flashRange = jumpToOffset;
+
   // Hover delegation.
   scroll.addEventListener('mouseover', (e) => {
     const t = e.target.closest('.ovr');
@@ -225,8 +363,7 @@ export function createHex() {
     if (!raw) return;
     const n = parseInt(raw.replace(/^0x/i, ''), 16);
     if (Number.isNaN(n) || n < 0 || n >= bytes().byteLength) return;
-    const row = Math.floor(n / BYTES_PER_ROW);
-    scroll.scrollTop = row * ROW_HEIGHT;
+    jumpToOffset(n, 1);
   });
 
   const ro = new ResizeObserver(() => {
@@ -235,14 +372,28 @@ export function createHex() {
   });
   ro.observe(scroll);
 
+  // File subscribe first: the Store impl fires synchronously on subscribe,
+  // so this seeds the entropy strip + initial render before any nav request
+  // could land below.
   fileStore.subscribe(() => {
     scroll.scrollTop = 0;
     scrollTop = 0;
     hoveredField = null;
     selectedOffset = -1;
+    pendingFlash = null;
     clearHint('hex');
+    buildEntropy();
     render();
     renderTip();
+  });
+
+  // Cross-module navigation: respond to navStore requests targeting 'hex'.
+  // INSPECT publishes { route: 'hex', address: offset, len, ts } and the
+  // router has already switched us in by the time this fires.
+  navStore.subscribe((req) => {
+    if (!req || req.route !== 'hex') return;
+    const len = typeof req.len === 'number' ? req.len : 1;
+    jumpToOffset(req.address, len);
   });
 
   return wrap;

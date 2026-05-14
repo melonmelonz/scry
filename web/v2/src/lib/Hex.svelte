@@ -16,6 +16,15 @@
   let blockSize = $state(0);
   let gotoVal = $state('');
 
+  // Cross-pane jump choreography. When an external jumpTo arrives we paint
+  // the destination row with --tint-drop and fade it out over ~400ms. The
+  // flash carries one `--fade` custom property the row's transition consumes.
+  let flashOffset = $state(null);   // byte offset (rounded to row) being flashed
+  let flashUntil = $state(0);       // performance.now() ms when fade ends
+  let flashTick = $state(0);        // rerender pulse for the 400ms window
+  let hoveredRow = $state(null);    // 0..rows.length-1 for hover tint
+  const FLASH_MS = 400;
+
   $effect(() => {
     let cancelled = false;
     ensureWasm().then((c) => {
@@ -30,13 +39,52 @@
     return () => { cancelled = true; };
   });
 
-  // External "jump to offset" trigger (from Inspect tables).
+  // External "jump to offset" trigger (from Inspect tables). Scrolls the
+  // destination row into the top third of the viewport and fires the flash.
   $effect(() => {
     if (jumpTo == null) return;
     const o = Math.max(0, Math.min((bytes?.length ?? 1) - 1, Number(jumpTo) | 0));
-    offset = Math.floor(o / 16) * 16;
+    const rowStart = Math.floor(o / 16) * 16;
+    // Page the viewport so the target row exists in `rows`.
+    const pageStart = Math.floor(rowStart / PAGE) * PAGE;
+    offset = pageStart;
     render();
+    flashOffset = rowStart;
+    flashUntil = performance.now() + FLASH_MS;
+    flashTick++;
+
+    // Smooth-scroll the target row into top-third of the .grid viewport.
+    // Defer until the rows have actually painted.
+    requestAnimationFrame(() => {
+      const grid = gridEl;
+      if (!grid) return;
+      const node = grid.querySelector(`[data-row-off="${rowStart}"]`);
+      if (!node) return;
+      const gridRect = grid.getBoundingClientRect();
+      const nodeRect = node.getBoundingClientRect();
+      const targetOffset = nodeRect.top - gridRect.top - gridRect.height / 3;
+      grid.scrollTo({ top: grid.scrollTop + targetOffset, behavior: 'smooth' });
+    });
   });
+
+  // Tick the flash window so the row's inline style decays smoothly even
+  // without a Svelte state change. rAF until flashUntil; then clean up.
+  $effect(() => {
+    if (flashTick === 0) return;
+    let raf = 0;
+    const loop = () => {
+      if (performance.now() >= flashUntil) {
+        flashOffset = null;
+        return;
+      }
+      flashTick = (flashTick + 1) & 0xfff;
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  });
+
+  let gridEl = $state(null);
 
   function render() {
     if (!core || !bytes) return;
@@ -75,6 +123,26 @@
   let viewportFrac = $derived(
     bytes && bytes.length ? offset / bytes.length : 0
   );
+
+  // Compute the per-row flash alpha (0..1) given the live flashTick.
+  // The `_` parameter forces callers to pass `flashTick` so Svelte tracks
+  // it as a reactive read and re-evaluates inline styles each rAF tick.
+  function flashAlphaFor(rowOff, _tick) {
+    if (flashOffset == null || rowOff !== flashOffset) return 0;
+    const remaining = flashUntil - performance.now();
+    if (remaining <= 0) return 0;
+    return remaining / FLASH_MS;
+  }
+
+  // Each row in `rows` is a preformatted "00000000  ff ee ...  |....| " line.
+  // We expose them as paired (offset, text) so we can set per-row attributes.
+  let rowsWithOff = $derived.by(() => {
+    const out = [];
+    for (let i = 0; i < rows.length; i++) {
+      out.push({ off: offset + i * 16, text: rows[i] });
+    }
+    return out;
+  });
 </script>
 
 <div class="wrap">
@@ -110,8 +178,17 @@
     </div>
   {/if}
 
-  <pre class="grid">{#each rows as line}{line}
-{/each}</pre>
+  <pre class="grid" bind:this={gridEl}>{#each rowsWithOff as r, i}<span
+      class="hex-row"
+      class:hover={hoveredRow === i}
+      class:flash={r.off === flashOffset}
+      data-row-off={r.off}
+      role="presentation"
+      style={r.off === flashOffset ? `--flash-a: ${flashAlphaFor(r.off, flashTick)}` : ''}
+      onmouseenter={() => (hoveredRow = i)}
+      onmouseleave={() => (hoveredRow === i && (hoveredRow = null))}
+    >{r.text}
+</span>{/each}</pre>
 </div>
 
 <style>
@@ -196,5 +273,18 @@
     line-height: 1.45;
     white-space: pre;
     font-family: var(--mono);
+  }
+  /* Each row paints inline so background highlights snap to the row box. */
+  .hex-row {
+    display: block;
+    background: transparent;
+    transition: background 80ms ease;
+    /* The flash background reads --flash-a; fading the alpha gives a calm
+       fade-to-transparent over the rAF loop rather than a single jump. */
+  }
+  .hex-row.hover { background: var(--tint-row); }
+  .hex-row.flash {
+    /* --tint-drop is rgba already; we layer a fading rgba over it via alpha */
+    background: color-mix(in srgb, var(--tint-drop) calc(var(--flash-a, 0) * 100%), transparent);
   }
 </style>

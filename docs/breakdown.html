@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scry — Technical Breakdown</title>
+<meta name="description" content="V1 (pure JS) vs V2 (Rust + WASM): what each engine actually does, side by side.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #F2F1EC;
+    --paper:     #FAF8F2;
+    --grey:      #DEDDD7;
+    --rule:      #C7C5BF;
+    --ink:       #1F2421;
+    --ink-dim:   #4A4E48;
+    --muted:     #8A8E87;
+    --mint:      #A6C9B5;
+    --mint-deep: #5E957A;
+    --mint-pale: #E2EEE7;
+    --mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, monospace;
+    color-scheme: light;
+  }
+  [data-theme="dark"] {
+    --bg:        #14171A;
+    --paper:     #1B1F23;
+    --grey:      #2A2F33;
+    --rule:      #3B4146;
+    --ink:       #E8E7E1;
+    --ink-dim:   #BCBAB1;
+    --muted:     #8A8E87;
+    --mint:      #6B9F84;
+    --mint-deep: #8FC2A8;
+    --mint-pale: #243A30;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171A; --paper: #1B1F23; --grey: #2A2F33; --rule: #3B4146;
+      --ink: #E8E7E1; --ink-dim: #BCBAB1; --muted: #8A8E87;
+      --mint: #6B9F84; --mint-deep: #8FC2A8; --mint-pale: #243A30;
+      color-scheme: dark;
+    }
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { color-scheme: light dark; accent-color: var(--mint-deep); scroll-behavior: smooth; }
+  ::selection { background: var(--mint-deep); color: var(--paper); }
+  body {
+    font-family: var(--mono);
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.6;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  body::before {
+    content: '';
+    position: fixed; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--mint-deep);
+    z-index: 100;
+  }
+  .page { max-width: 1100px; margin: 0 auto; padding: 64px 56px 120px; }
+  @media (max-width: 720px) { .page { padding: 48px 22px 80px; } }
+
+  .doc-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--ink);
+    margin-bottom: 48px;
+  }
+  .brand { font-size: 18px; font-weight: 600; letter-spacing: 0.04em; text-decoration: none; color: inherit; }
+  .brand::before { content: '\25C6 '; color: var(--mint-deep); font-size: 14px; }
+  .doc-meta { font-size: 10px; color: var(--muted); letter-spacing: 0.14em; text-transform: uppercase; }
+  .doc-meta a { color: var(--mint-deep); text-decoration: none; }
+  .doc-meta a:hover { text-decoration: underline; }
+
+  .hero { margin-bottom: 56px; }
+  .hero-kicker {
+    font-size: 10px; letter-spacing: 0.2em;
+    color: var(--mint-deep); text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+  .hero h1 {
+    font-size: 28px; font-weight: 300; line-height: 1.25;
+    letter-spacing: -0.01em; max-width: 900px;
+  }
+  .hero h1 em { font-style: normal; color: var(--mint-deep); }
+  .hero p {
+    margin-top: 18px; max-width: 720px;
+    color: var(--ink-dim); font-size: 13px;
+  }
+
+  section { margin-bottom: 56px; }
+  .sec-head {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    align-items: baseline; gap: 24px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--ink);
+    margin-bottom: 22px;
+  }
+  .sec-num { font-size: 11px; color: var(--mint-deep); letter-spacing: 0.16em; }
+  .sec-title { font-size: 20px; font-weight: 500; letter-spacing: -0.005em; }
+  .sec-tag { font-size: 9px; color: var(--muted); letter-spacing: 0.16em; text-transform: uppercase; }
+
+  /* Two-column comparison */
+  .cmp {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border: 1px solid var(--grey);
+    background: var(--paper);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  @media (max-width: 760px) { .cmp { grid-template-columns: 1fr; } }
+  .cmp-col { padding: 18px 22px; }
+  .cmp-col + .cmp-col { border-left: 1px solid var(--grey); }
+  @media (max-width: 760px) {
+    .cmp-col + .cmp-col { border-left: 0; border-top: 1px solid var(--grey); }
+  }
+  .cmp-head {
+    font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 6px;
+  }
+  .cmp-title { font-size: 15px; font-weight: 500; margin-bottom: 10px; }
+  .cmp-title em { font-style: normal; color: var(--mint-deep); }
+  .cmp-body p { font-size: 12px; color: var(--ink-dim); margin-bottom: 8px; }
+  .cmp-body code {
+    font-family: var(--mono); font-size: 11px;
+    background: var(--bg); padding: 1px 5px;
+    border: 1px solid var(--rule); border-radius: 3px;
+    color: var(--ink);
+  }
+  .cmp-body ul { padding-left: 18px; margin: 6px 0; }
+  .cmp-body li { font-size: 12px; color: var(--ink-dim); margin-bottom: 3px; }
+  .cmp-body li strong { color: var(--ink); font-weight: 500; }
+
+  .row-table {
+    border: 1px solid var(--grey);
+    background: var(--paper);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .row-line {
+    display: grid;
+    grid-template-columns: 180px 1fr 1fr;
+    border-bottom: 1px solid var(--grey);
+    font-size: 12px;
+  }
+  .row-line:last-child { border-bottom: 0; }
+  .row-line > div { padding: 10px 16px; min-width: 0; }
+  .row-line .label { color: var(--muted); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; align-self: center; }
+  .row-line .v1, .row-line .v2 { color: var(--ink-dim); }
+  .row-line .v1 { border-left: 1px solid var(--grey); }
+  .row-line .v2 { border-left: 1px solid var(--grey); }
+  .row-line .v1 b, .row-line .v2 b { color: var(--ink); font-weight: 500; }
+  @media (max-width: 760px) {
+    .row-line { grid-template-columns: 1fr; }
+    .row-line .v1, .row-line .v2 { border-left: 0; border-top: 1px solid var(--grey); }
+  }
+
+  .callout {
+    margin-top: 18px;
+    padding: 16px 22px;
+    background: var(--mint-pale);
+    border-left: 3px solid var(--mint-deep);
+    border-radius: 0 4px 4px 0;
+    font-size: 12px;
+    color: var(--ink-dim);
+  }
+  .callout strong { color: var(--ink); }
+
+  .ascii {
+    background: var(--paper);
+    border: 1px solid var(--grey);
+    border-radius: 4px;
+    padding: 18px 22px;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.65;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--ink);
+  }
+  .ascii .mint { color: var(--mint-deep); }
+  .ascii .muted { color: var(--muted); }
+
+  .nav-back { margin-top: 64px; }
+  .nav-back a {
+    font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--mint-deep); text-decoration: none;
+    border: 1px solid var(--rule); padding: 8px 14px;
+    transition: border-color 120ms ease, background 120ms ease;
+  }
+  .nav-back a:hover { border-color: var(--mint-deep); background: var(--mint-pale); }
+</style>
+<script>
+  try {
+    var t = localStorage.getItem('scry-theme');
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+</script>
+</head>
+<body>
+<div class="page">
+
+<header class="doc-head">
+  <a class="brand" href="/">scry</a>
+  <span class="doc-meta">Technical Breakdown &middot; <a href="scope.html">Scope &rarr;</a> &middot; <a href="/">Workbench &rarr;</a></span>
+</header>
+
+<div class="hero">
+  <div class="hero-kicker">V1 &middot; V2 &middot; THE SAME UI, TWO ENGINES</div>
+  <h1>Two implementations of the same workbench: <em>pure JavaScript</em> on the left, <em>Rust compiled to WebAssembly</em> on the right.</h1>
+  <p>
+    Same panes, same shortcuts, same files. The point of having two engines isn't to ship both forever &mdash;
+    it's to make the cost and shape of each approach legible. This page lines them up.
+  </p>
+</div>
+
+<!-- 01 -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">01</span>
+    <span class="sec-title">Architecture at a glance</span>
+    <span class="sec-tag">SHELL &middot; ENGINES</span>
+  </div>
+
+  <pre class="ascii">
+<span class="muted">  scry.goolz.org/</span>
+  &#9484;&#9472;&#9472; <span class="mint">index.html</span>      &larr; unified shell. iframes one engine at a time.
+  &#9474;     V1 &#8226; V2 toggle &middot; theme &middot; tech breakdown
+  &#9474;
+  &#9500;&#9472;&#9472; <span class="mint">v1/</span>              <span class="muted">pure JS &middot; no bundler &middot; ~50 source files</span>
+  &#9474;     hex &middot; inspect &middot; disasm &middot; emu &middot; trace &middot; wave &middot; game
+  &#9474;
+  &#9492;&#9472;&#9472; <span class="mint">v2/</span>              <span class="muted">Rust &rarr; wasm-pack &rarr; Svelte 5</span>
+        scry-core.wasm (one file) + Svelte components
+  </pre>
+
+  <div class="callout">
+    <strong>The shell is the contract.</strong> Both engines accept the same drag-and-drop file, get the same
+    theme toggle pushed in via <code>postMessage</code>, and live behind the same URL. The toggle at the top
+    of the page swaps which one is mounted &mdash; nothing else.
+  </div>
+</section>
+
+<!-- 02 -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">02</span>
+    <span class="sec-title">What each engine actually is</span>
+    <span class="sec-tag">SIDE BY SIDE</span>
+  </div>
+
+  <div class="cmp">
+    <div class="cmp-col">
+      <div class="cmp-head">V1 &middot; PURE</div>
+      <div class="cmp-title">Vanilla JS, <em>nothing to install</em>.</div>
+      <div class="cmp-body">
+        <p>ES modules, classic <code>&lt;script type="module"&gt;</code>. No bundler, no build step,
+        no framework. Files are served byte-for-byte the way they sit in <code>web/v1/</code>.</p>
+        <ul>
+          <li><strong>State:</strong> a hand-rolled pub-sub store (<code>fileStore</code>, <code>router</code>, etc).</li>
+          <li><strong>DOM:</strong> a 30-line <code>el(tag, props, children)</code> helper. Never <code>innerHTML</code>.</li>
+          <li><strong>ELF parser:</strong> hand-written, ~400 LOC, just the fields the UI uses.</li>
+          <li><strong>WAV parser:</strong> hand-written RIFF chunk walker.</li>
+          <li><strong>GBA emulator:</strong> vendored <a href="https://github.com/endrift/gbajs">endrift/gbajs</a> (BSD-2). It runs the cart for real.</li>
+          <li><strong>Disasm/EMU:</strong> a small RV32IMA decoder + interpreter, written by hand.</li>
+        </ul>
+        <p>Source size minified: a few hundred KB. Cold-start: one HTTP round-trip per module the browser
+        actually asks for. No WASM, no SharedArrayBuffer, no service worker.</p>
+      </div>
+    </div>
+
+    <div class="cmp-col">
+      <div class="cmp-head">V2 &middot; RUST&middot;WASM</div>
+      <div class="cmp-title">Rust core, <em>Svelte 5 shell</em>.</div>
+      <div class="cmp-body">
+        <p>Crate <code>scry-core</code> compiles to a single <code>.wasm</code> via <code>wasm-pack</code>.
+        Svelte 5 (runes mode) calls into it for parsing and decoding.</p>
+        <ul>
+          <li><strong>State:</strong> Svelte 5 runes (<code>$state</code>, <code>$derived</code>, <code>$effect</code>).</li>
+          <li><strong>ELF parser:</strong> <code>goblin</code> crate &mdash; full-fat, battle-tested.</li>
+          <li><strong>WAV decoder:</strong> Rust RIFF walker, produces a real <code>Float32</code> sample buffer the browser plays via Web Audio.</li>
+          <li><strong>GBA cart:</strong> Rust verifies the Nintendo header checksum (sum bytes 0xA0..=0xBC, negate, subtract 0x19).</li>
+          <li><strong>Emulator:</strong> not yet ported &mdash; V1 owns that story for now.</li>
+        </ul>
+        <p>Source size: the wasm module is the bulk &mdash; one fetch, then everything runs in-process. The Vite/Svelte build
+        bundles + minifies + tree-shakes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">03</span>
+    <span class="sec-title">Pane-by-pane status</span>
+    <span class="sec-tag">WHAT WORKS, WHERE</span>
+  </div>
+
+  <div class="row-table">
+    <div class="row-line">
+      <div class="label">INSPECT (ELF)</div>
+      <div class="v1"><b>V1:</b> hand-rolled parser, all critical fields.</div>
+      <div class="v2"><b>V2:</b> <code>goblin</code> &mdash; richer, surfaces more sections/symbols.</div>
+    </div>
+    <div class="row-line">
+      <div class="label">HEX</div>
+      <div class="v1"><b>V1:</b> virtualized; 64 MiB cap; click-to-overlay.</div>
+      <div class="v2"><b>V2:</b> same UX, entropy strip driven by <code>scry-core::entropy_blocks</code>.</div>
+    </div>
+    <div class="row-line">
+      <div class="label">WAVE (audio)</div>
+      <div class="v1"><b>V1:</b> hand-rolled PCM walk &rarr; Float32 + Web Audio + 256-bucket envelope.</div>
+      <div class="v2"><b>V2:</b> Rust <code>decode_wav</code> returns the buffer; UI is symmetric.</div>
+    </div>
+    <div class="row-line">
+      <div class="label">DISASM (RV32)</div>
+      <div class="v1"><b>V1:</b> hand-rolled RV32IMA decoder, register/mnemonic view.</div>
+      <div class="v2"><b>V2:</b> punt for now &mdash; V1 covers this; Rust port is on the roadmap.</div>
+    </div>
+    <div class="row-line">
+      <div class="label">EMU (RV32)</div>
+      <div class="v1"><b>V1:</b> step/run with MMIO peripherals (SPI, I2C).</div>
+      <div class="v2"><b>V2:</b> not yet.</div>
+    </div>
+    <div class="row-line">
+      <div class="label">GAME (GBA)</div>
+      <div class="v1"><b>V1:</b> vendored <code>gbajs</code> renders to a canvas &mdash; cart actually runs.</div>
+      <div class="v2"><b>V2:</b> CART pane &mdash; Rust verifies the header checksum.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">04</span>
+    <span class="sec-title">Trade-offs, honestly</span>
+    <span class="sec-tag">WHY BOTH</span>
+  </div>
+
+  <div class="cmp">
+    <div class="cmp-col">
+      <div class="cmp-head">WHEN V1 WINS</div>
+      <div class="cmp-body">
+        <ul>
+          <li><strong>Zero compile chain.</strong> Edit a JS file, refresh, done.</li>
+          <li><strong>Smaller initial payload</strong> for small files &mdash; no wasm fetch.</li>
+          <li><strong>Easier to vendor JS-native libraries</strong> (the emulator is the perfect example).</li>
+          <li><strong>Easier to read end-to-end</strong> as a teaching artifact.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="cmp-col">
+      <div class="cmp-head">WHEN V2 WINS</div>
+      <div class="cmp-body">
+        <ul>
+          <li><strong>Real parsers.</strong> <code>goblin</code> handles weird ELFs V1 won't.</li>
+          <li><strong>Type-safe core.</strong> Rust + serde keeps the JS layer thin.</li>
+          <li><strong>Native-ish speed</strong> for big files &mdash; envelope/entropy in wasm beats JS by 5-20x.</li>
+          <li><strong>Shareable core.</strong> The same crate could back a CLI or a desktop app.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>The unifying constraint:</strong> nothing leaves the browser tab. Both engines parse, render,
+    and emulate <em>locally</em>. No upload, no telemetry, no service worker, no login. The user's binary
+    stays on their machine.
+  </div>
+</section>
+
+<!-- 05 -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">05</span>
+    <span class="sec-title">Sources &middot; licenses &middot; provenance</span>
+    <span class="sec-tag">CREDITS</span>
+  </div>
+
+  <div class="row-table">
+    <div class="row-line">
+      <div class="label">gbajs</div>
+      <div class="v1"><b>endrift/gbajs</b> &mdash; pure-JS GBA emulator, BSD-2.</div>
+      <div class="v2">Vendored under <code>web/v1/vendor/gbajs/</code>; see <code>NOTICE.md</code>.</div>
+    </div>
+    <div class="row-line">
+      <div class="label">goblin</div>
+      <div class="v1"><b>m4b/goblin</b> &mdash; Rust binary parser.</div>
+      <div class="v2">Apache-2.0 / MIT, pulled via cargo.</div>
+    </div>
+    <div class="row-line">
+      <div class="label">Svelte</div>
+      <div class="v1"><b>Svelte 5</b> &mdash; runes mode, MIT.</div>
+      <div class="v2">V2 only.</div>
+    </div>
+    <div class="row-line">
+      <div class="label">Pokemon Emerald ROM</div>
+      <div class="v1">Penn's own legitimate cartridge dump.</div>
+      <div class="v2">Bundled only for this small-audience non-commercial demo.</div>
+    </div>
+  </div>
+</section>
+
+<div class="nav-back">
+  <a href="/">&larr; Back to workbench</a>
+</div>
+
+</div>
+</body>
+</html>

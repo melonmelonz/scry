@@ -1,0 +1,132 @@
+/* GAME pane: split layout — emulator left, header/hex inspector right. */
+.s-game { height: 100%; display: flex; min-height: 0; }
+.game-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+  padding: 0 0 0 0;
+}
+.game-left, .game-right {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 16px 22px;
+}
+.game-left  { border-right: 1px solid var(--rule-soft); }
+
+.game-bar {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 18px; padding: 0 0 12px;
+  border-bottom: 1px solid var(--grey);
+}
+.game-title { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.game-hint  { font-size: 10px; color: var(--mint-deep); letter-spacing: 0.06em; }
+
+.game-canvas-wrap {
+  display: flex; align-items: center; justify-content: center;
+  flex: 1; min-height: 0;
+  padding: 14px 0;
+}
+.game-canvas {
+  width: 480px;
+  height: 320px;
+  max-width: 100%;
+  max-height: 100%;
+  background: #000;
+  /* Crisp pixel art across browsers — never bilinear-blur a GBA screen. */
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  outline: 1px solid var(--rule);
+  /* Focus ring inherits a faint mint so users know inputs are captured. */
+}
+.game-canvas:focus { outline: 2px solid var(--mint-deep); }
+
+.game-controls {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--rule-soft);
+}
+.game-btn {
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--grey);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.game-btn:hover {
+  background: var(--mint-pale);
+  border-color: var(--mint-deep);
+  color: var(--mint-deep);
+}
+.game-status {
+  margin-left: auto;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Inspector (right column). */
+.game-right { overflow: auto; }
+.game-inspector-title {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 4px 0 8px;
+}
+.game-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 18px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--rule-soft);
+  margin-bottom: 14px;
+}
+.game-meta-row {
+  display: flex; align-items: baseline; gap: 12px;
+  font-size: 11px;
+}
+.game-meta-row .l {
+  width: 86px; flex-shrink: 0;
+  font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted);
+}
+.game-meta-row .v { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* Hex preview rows on the inspector side. Same skin as the HEX pane but
+   lighter — no overlays, no virtualization. Just a static window. */
+.game-hex { display: flex; flex-direction: column; gap: 2px; }
+.game-hex-row {
+  display: grid;
+  grid-template-columns: 100px 1fr 180px;
+  gap: 14px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+.game-hex-row .addr  { color: var(--muted); }
+.game-hex-row .bytes { color: var(--ink);   white-space: pre; }
+.game-hex-row .ascii { color: var(--ink-dim); white-space: pre; }
+
+.game-empty {
+  padding: 32px 0;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* Narrow screens: stack the panes. */
+@media (max-width: 1000px) {
+  .game-split { grid-template-columns: 1fr; }
+  .game-left  { border-right: none; border-bottom: 1px solid var(--rule-soft); }
+}

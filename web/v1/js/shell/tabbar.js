@@ -11,6 +11,16 @@ function isELF() {
   return b !== null && detectFormat(b) === 'elf';
 }
 
+function isWAV() {
+  const b = fileStore.get().bytes;
+  return b !== null && detectFormat(b) === 'wav';
+}
+
+function isGBA() {
+  const b = fileStore.get().bytes;
+  return b !== null && detectFormat(b) === 'gba';
+}
+
 // Phase 1 (v1) — each tab decides its own availability via `enabled` and
 // explains its disabled state via `disabledReason` so the user sees a
 // tooltip explaining why it's greyed out.
@@ -26,6 +36,11 @@ const TABS = [
     disabledReason: () => 'Load a file first',
   },
   {
+    id: 'wave', label: 'WAVE',
+    enabled: () => isWAV(),
+    disabledReason: () => hasFile() ? 'WAVE is RIFF/WAVE-only' : 'Load a file first',
+  },
+  {
     id: 'disasm', label: 'DISASM',
     enabled: () => hasFile(),
     disabledReason: () => 'Load a file first',
@@ -39,6 +54,11 @@ const TABS = [
     id: 'trace', label: 'TRACE',
     enabled: () => hasFile(),
     disabledReason: () => 'Load a file first',
+  },
+  {
+    id: 'game', label: 'GAME',
+    enabled: () => isGBA(),
+    disabledReason: () => hasFile() ? 'GAME is GBA-cart-only' : 'Load a file first',
   },
 ];
 

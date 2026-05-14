@@ -68,6 +68,7 @@
   /* motion */
   --t-fast: 120ms ease;
   --t-base: 200ms ease;
+  --t-swap: 220ms ease;
 
   color-scheme: light;
 }

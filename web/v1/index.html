@@ -17,6 +17,8 @@
 <link rel="stylesheet" href="css/disasm.css">
 <link rel="stylesheet" href="css/emu.css">
 <link rel="stylesheet" href="css/trace.css">
+<link rel="stylesheet" href="css/wave.css">
+<link rel="stylesheet" href="css/game.css">
 <script>
   // Apply stored theme synchronously to avoid a light-flash on first paint.
   // Allowed values are "light" and "dark"; anything else falls through to the
@@ -44,6 +46,26 @@
 </head>
 <body>
 <div id="app"></div>
+<!-- Vendored gbajs (BSD-2, endrift) — see vendor/gbajs/NOTICE.md.
+     Classic <script> tags because gbajs is non-module and registers
+     globals (GameBoyAdvance, etc.) that the GAME module reads. Load
+     order mirrors upstream's index.html. -->
+<script src="vendor/gbajs/js/util.js"></script>
+<script src="vendor/gbajs/js/core.js"></script>
+<script src="vendor/gbajs/js/arm.js"></script>
+<script src="vendor/gbajs/js/thumb.js"></script>
+<script src="vendor/gbajs/js/mmu.js"></script>
+<script src="vendor/gbajs/js/io.js"></script>
+<script src="vendor/gbajs/js/audio.js"></script>
+<script src="vendor/gbajs/js/video.js"></script>
+<script src="vendor/gbajs/js/video/proxy.js"></script>
+<script src="vendor/gbajs/js/video/software.js"></script>
+<script src="vendor/gbajs/js/irq.js"></script>
+<script src="vendor/gbajs/js/keypad.js"></script>
+<script src="vendor/gbajs/js/sio.js"></script>
+<script src="vendor/gbajs/js/savedata.js"></script>
+<script src="vendor/gbajs/js/gpio.js"></script>
+<script src="vendor/gbajs/js/gba.js"></script>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>
