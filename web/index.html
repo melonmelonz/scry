@@ -202,6 +202,19 @@ iframe.surface.ready {
 }
 .foot a { color: var(--muted); text-decoration: none; }
 .foot a:hover { color: var(--mint-deep); }
+
+/* Mobile chrome --------------------------------------------------------- */
+@media (max-width: 760px) {
+  .chrome {
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    padding: 10px 14px;
+  }
+  .chrome .tag { display: none; }
+  .scope-link, .theme-toggle { padding: 5px 10px; font-size: 9px; }
+  .modes { order: -1; }
+  .foot { padding: 8px 14px; font-size: 8px; }
+}
 </style>
 <script>
   // Pre-paint theme so the chrome and the iframe agree on a palette

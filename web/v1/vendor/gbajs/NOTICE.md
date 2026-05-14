@@ -1,9 +1,13 @@
 # GBA.js (vendored)
 
 This directory vendors the JavaScript GBA emulator originally written by
-**Jeffrey Pfau** (endrift), licensed under the 2-clause BSD license
-(see `COPYING`). The upstream project is archived at
-<https://github.com/endrift/gbajs>.
+**Jeffrey Pfau** (endrift) and maintained as the **gbajs2** community
+fork by **Andrew Chase** (andychase). Both are licensed under the
+2-clause BSD license (see `COPYING`).
+
+Upstream:
+- Original (archived): <https://github.com/endrift/gbajs>
+- Active fork:         <https://github.com/andychase/gbajs2>
 
 ## What scry uses it for
 
@@ -16,18 +20,12 @@ the public `GameBoyAdvance` constructor and methods (`setCanvas`,
 ## Files vendored
 
 ```
-js/          — emulator core (CPU, MMU, PPU, APU, IRQ, keypad, save, etc.)
-js/video/    — software renderer + worker proxy
+js/                  — emulator core (CPU, MMU, PPU, APU, IRQ, keypad, save, etc.)
+js/video/            — software renderer + worker proxy
 resources/
-  bios.bin   — minimal HLE BIOS stub (assembled from bios.S upstream)
-  xhr.js     — small XHR helper used by the upstream demo
-COPYING      — upstream BSD-2 license
+  bios.bin           — minimal HLE BIOS stub (assembled from bios.S upstream)
+  biosbin.js         — same stub, base64-baked into the global `biosBin`
+                       so the emulator boots without an XHR/fetch round-trip
+  xhr.js             — small XHR helper used by the upstream demo
+COPYING              — upstream BSD-2 license (both copyrights)
 ```
-
-## Why archived code
-
-GBA.js was last updated by upstream in 2014. It is BSD-2 licensed,
-self-contained, and runs on modern browsers because it depends only on
-DataView, Canvas 2D, and Web Audio — all stable web standards. It is
-sufficient for booting and playing the demo cartridge for the duration
-of the scry class demo.

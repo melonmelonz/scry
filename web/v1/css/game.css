@@ -1,4 +1,4 @@
-/* GAME pane: split layout — emulator left, header/hex inspector right. */
+/* GAME pane: split layout — emulator left, full HEX inspector right. */
 .s-game { height: 100%; display: flex; min-height: 0; }
 .game-split {
   display: grid;
@@ -6,21 +6,30 @@
   gap: 0;
   flex: 1;
   min-height: 0;
-  padding: 0 0 0 0;
 }
 .game-left, .game-right {
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+}
+.game-left  {
+  border-right: 1px solid var(--rule-soft);
   padding: 16px 22px;
 }
-.game-left  { border-right: 1px solid var(--rule-soft); }
+.game-right {
+  /* No padding — the embedded .hex-wrap brings its own internal padding. */
+  padding: 0;
+}
 
 .game-bar {
   display: flex; align-items: baseline; justify-content: space-between;
   gap: 18px; padding: 0 0 12px;
   border-bottom: 1px solid var(--grey);
+}
+.game-right > .game-bar {
+  padding: 16px 22px 12px;
+  margin: 0;
 }
 .game-title { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
 .game-hint  { font-size: 10px; color: var(--mint-deep); letter-spacing: 0.06em; }
@@ -36,12 +45,10 @@
   max-width: 100%;
   max-height: 100%;
   background: #000;
-  /* Crisp pixel art across browsers — never bilinear-blur a GBA screen. */
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
   outline: 1px solid var(--rule);
-  /* Focus ring inherits a faint mint so users know inputs are captured. */
 }
 .game-canvas:focus { outline: 2px solid var(--mint-deep); }
 
@@ -75,58 +82,38 @@
   color: var(--muted);
 }
 
-/* Inspector (right column). */
-.game-right { overflow: auto; }
-.game-inspector-title {
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin: 4px 0 8px;
-}
-.game-meta {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 18px;
-  padding: 0 0 14px;
+/* Compact cartridge-header row above the embedded hex inspector. */
+.game-cart-head-wrap {
+  padding: 10px 22px;
   border-bottom: 1px solid var(--rule-soft);
-  margin-bottom: 14px;
 }
-.game-meta-row {
-  display: flex; align-items: baseline; gap: 12px;
-  font-size: 11px;
-}
-.game-meta-row .l {
-  width: 86px; flex-shrink: 0;
-  font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--muted);
-}
-.game-meta-row .v { color: var(--ink); font-variant-numeric: tabular-nums; }
-
-/* Hex preview rows on the inspector side. Same skin as the HEX pane but
-   lighter — no overlays, no virtualization. Just a static window. */
-.game-hex { display: flex; flex-direction: column; gap: 2px; }
-.game-hex-row {
-  display: grid;
-  grid-template-columns: 100px 1fr 180px;
-  gap: 14px;
+.game-cart-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
-  line-height: 1.4;
 }
-.game-hex-row .addr  { color: var(--muted); }
-.game-hex-row .bytes { color: var(--ink);   white-space: pre; }
-.game-hex-row .ascii { color: var(--ink-dim); white-space: pre; }
-
-.game-empty {
-  padding: 32px 0;
-  font-size: 11px;
-  font-style: italic;
+.game-cart-head .k {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--muted);
+  margin-right: 4px;
+}
+.game-cart-head .v { color: var(--ink); }
+
+/* The embedded hex inspector fills the rest of the right column. */
+.game-hex-embed {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Narrow screens: stack the panes. */
 @media (max-width: 1000px) {
   .game-split { grid-template-columns: 1fr; }
   .game-left  { border-right: none; border-bottom: 1px solid var(--rule-soft); }
+  .game-right { min-height: 60vh; }
 }

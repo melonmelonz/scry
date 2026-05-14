@@ -21,3 +21,6 @@ Thumbs.db
 
 # Brainstorming companion (not for the repo)
 .superpowers/
+
+# Personal / not for the repo (class slides, presentation notes, dumps)
+.local/
