@@ -4,14 +4,23 @@
   // classic scripts loaded in index.html. The bridge there publishes
   // GameBoyAdvance and biosBin onto window so this module can reach
   // them.
+  //
+  // Loading is opt-in. gbajs2's setRom does a sync save-type scan over
+  // the whole cart, which blocks the main thread for a second-plus on
+  // a 16 MiB Pokemon ROM. We don't pay that cost just because the user
+  // opened the tab — we wait for an explicit PLAY click, paint a
+  // "loading…" frame, then let it block. Audio + video then come up
+  // together.
+
+  import { onDestroy } from 'svelte';
 
   let { bytes, header } = $props();
 
   let canvas;
   let gba = null;
+  let romLoaded = false;
   let running = $state(false);
-  let status = $state('idle');
-  let booted = $state(false);
+  let status = $state('cart ready \u00B7 click PLAY');
 
   const CANVAS_W = 480;
   const CANVAS_H = 320;
@@ -39,37 +48,34 @@
     return gba;
   }
 
-  // Yield to the rendering thread between heavy phases so the status
-  // text actually paints. setRom does a save-type scan over the whole
-  // cart which can take a moment on 16 MiB ROMs.
-  async function loadCart(b) {
-    status = 'booting\u2026';
-    await new Promise(r => requestAnimationFrame(r));
-    try {
-      const inst = ensureGba();
-      status = 'copying ROM\u2026';
-      await new Promise(r => requestAnimationFrame(r));
-      const rom = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
-      status = 'parsing cart\u2026';
-      await new Promise(r => requestAnimationFrame(r));
-      const ok = inst.setRom(rom);
-      if (!ok) {
-        status = 'rom rejected';
-        return;
-      }
-      status = 'paused \u00B7 click PLAY';
-      running = false;
-      booted = true;
-    } catch (e) {
-      console.error('[scry/v2/game] load failed', e);
-      status = 'error: ' + (e?.message || e);
-    }
-  }
-
-  function play() {
-    if (!gba || !gba.hasRom()) return;
+  async function play() {
+    if (!bytes) return;
     if (running) return;
     canvas.focus();
+    if (!romLoaded) {
+      status = 'loading ROM\u2026';
+      // Two rAFs: first paints "loading", second guarantees the paint
+      // committed before we start blocking on setRom.
+      await new Promise(r => requestAnimationFrame(r));
+      await new Promise(r => requestAnimationFrame(r));
+      try {
+        const inst = ensureGba();
+        const rom = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+        const ok = inst.setRom(rom);
+        if (!ok) {
+          status = 'rom rejected';
+          return;
+        }
+        romLoaded = true;
+        inst.runStable();
+        running = true;
+        status = 'running';
+      } catch (e) {
+        console.error('[scry/v2/game] load failed', e);
+        status = 'error: ' + (e?.message || e);
+      }
+      return;
+    }
     gba.runStable();
     running = true;
     status = 'running';
@@ -85,31 +91,36 @@
   function reset() {
     if (!gba || !bytes) return;
     const wasRunning = running;
-    pause();
-    loadCart(bytes).then(() => { if (wasRunning) play(); });
+    if (wasRunning) {
+      try { gba.pause(); } catch { /* ignore */ }
+      running = false;
+    }
+    romLoaded = false;
+    status = 'cart ready \u00B7 click PLAY';
+    if (wasRunning) play();
   }
 
-  // Boot the cart once the canvas element is wired up. We defer with a
-  // rAF so the element has real layout dimensions when gbajs takes a
-  // first look.
+  // If the file goes away (user closes the cart), reset our state.
   $effect(() => {
     const b = bytes;
-    if (!canvas) return;
-    if (!b) return;
-    // Guard against rebinding when the user toggles tabs.
-    if (booted && gba && gba.hasRom()) return;
-    requestAnimationFrame(() => loadCart(b));
-  });
-
-  // If the file changes out from under us (user closes the cart), pause
-  // and let the parent reset state. We don't tear down the canvas because
-  // Svelte unmounts the whole component when view !== 'game'.
-  $effect(() => {
-    return () => {
+    if (!b) {
       if (gba && running) {
         try { gba.pause(); } catch { /* ignore */ }
       }
-    };
+      romLoaded = false;
+      running = false;
+      status = 'idle';
+    } else {
+      // Fresh cart bytes (could be the same buffer or a new one). If we
+      // had a previous ROM loaded, force a reload on next PLAY.
+      if (!running) status = 'cart ready \u00B7 click PLAY';
+    }
+  });
+
+  onDestroy(() => {
+    if (gba && running) {
+      try { gba.pause(); } catch { /* ignore */ }
+    }
   });
 </script>
 
@@ -132,9 +143,9 @@
   </div>
 
   <div class="g-controls">
-    <button class="g-btn" type="button" onclick={play} disabled={!booted || running}>PLAY</button>
-    <button class="g-btn" type="button" onclick={pause} disabled={!booted || !running}>PAUSE</button>
-    <button class="g-btn" type="button" onclick={reset} disabled={!booted}>RESET</button>
+    <button class="g-btn" type="button" onclick={play} disabled={!bytes || running}>PLAY</button>
+    <button class="g-btn" type="button" onclick={pause} disabled={!running}>PAUSE</button>
+    <button class="g-btn" type="button" onclick={reset} disabled={!bytes || !romLoaded}>RESET</button>
     <span class="g-status">{status}</span>
     <span class="g-hint">arrows = D-pad &middot; Z/X = A/B &middot; Enter = Start</span>
   </div>
@@ -159,15 +170,24 @@
     display: flex; align-items: center; justify-content: center;
     padding: 18px 0;
   }
+  /* Explicit display dimensions with shrink-to-fit. Without these, the
+     canvas's height:auto sometimes collapses inside a flex column whose
+     parent height is short, leaving the backing pixels invisible
+     (audio still plays — that's the giveaway). Matches v1's canvas. */
   .g-canvas {
-    border: 1px solid var(--rule);
+    width: 480px;
+    height: 320px;
+    max-width: 100%;
+    max-height: 100%;
     background: #000;
     image-rendering: pixelated;
-    max-width: 100%;
-    height: auto;
-    outline: none;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    outline: 1px solid var(--rule);
+    border: 0;
+    display: block;
   }
-  .g-canvas:focus { border-color: var(--mint-deep); }
+  .g-canvas:focus { outline: 2px solid var(--mint-deep); }
 
   .g-controls {
     display: flex; align-items: center; gap: 10px;

@@ -26,6 +26,11 @@ body::before {
    already paints one and a second stripe just clutters the chrome. */
 :root[data-embedded] body::before { display: none; }
 
+/* The parent shell already paints a "LOCAL · NO UPLOAD · NO LOGIN" foot
+   below the iframe, so the inner status bar would just stack on top of
+   it. Drop ours when embedded. */
+:root[data-embedded] .s-status { display: none; }
+
 a { color: var(--mint-deep); text-decoration: none; }
 a:hover { text-decoration: underline; }
 button {

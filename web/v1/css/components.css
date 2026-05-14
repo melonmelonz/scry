@@ -95,6 +95,11 @@
   justify-content: flex-end;
 }
 
+/* The parent shell already paints a "LOCAL · NO UPLOAD · NO LOGIN" foot
+   below the iframe, so the inner status bar would just stack on top of
+   it. Drop ours when embedded. */
+:root[data-embedded] .s-status { display: none; }
+
 /* ─── Tab bar ──────────────────────────────── */
 .s-tabs { display: flex; border-bottom: var(--r-thin); }
 .s-tabs button {

@@ -185,7 +185,7 @@ export function createGame() {
   let gba = null;
   let currentBytes = null;
   let running = false;
-  let bootArmed = false;
+  let romLoaded = false; // setRom has been called on `gba` for currentBytes
 
   // ---- left pane: emulator canvas + controls -----------------------------
   const canvas = el('canvas', { class: 'game-canvas' });
@@ -242,29 +242,39 @@ export function createGame() {
     return gba;
   }
 
-  // Load a cart asynchronously, yielding between heavy stages so the
-  // status text actually paints and the user sees progress instead of
-  // a frozen page.
-  async function loadCart(bytes) {
-    setStatus('booting\u2026');
+  // Boot a cart synchronously inside one frame. gbajs2's setRom does a
+  // sync save-type scan that walks the whole cart, which is the source
+  // of the second-long freeze users see. We don't dress that up with
+  // fake-async progress text anymore — instead we wait for an explicit
+  // PLAY click, paint a "loading…" frame, then let it block. That way
+  // a 16 MiB Pokemon ROM doesn't lock the page just by landing in the
+  // store; the freeze only happens when the user opts in.
+  async function loadCartAndPlay() {
+    if (!currentBytes) return;
+    if (running) return;
+    setStatus('loading ROM\u2026');
+    // Two rAFs: first lets the status paint, second guarantees the
+    // browser has run the paint before we start blocking.
+    await new Promise(r => requestAnimationFrame(r));
     await new Promise(r => requestAnimationFrame(r));
     try {
       const inst = ensureGba();
-      setStatus('copying ROM\u2026');
-      await new Promise(r => requestAnimationFrame(r));
-      const rom = bytes.buffer.slice(
-        bytes.byteOffset,
-        bytes.byteOffset + bytes.byteLength
-      );
-      setStatus('parsing cart\u2026');
-      await new Promise(r => requestAnimationFrame(r));
-      const ok = inst.setRom(rom);
-      if (!ok) {
-        setStatus('rom rejected');
-        return;
+      if (!romLoaded) {
+        const rom = currentBytes.buffer.slice(
+          currentBytes.byteOffset,
+          currentBytes.byteOffset + currentBytes.byteLength
+        );
+        const ok = inst.setRom(rom);
+        if (!ok) {
+          setStatus('rom rejected');
+          return;
+        }
+        romLoaded = true;
       }
-      setStatus('paused \u00B7 click PLAY');
-      running = false;
+      canvas.focus();
+      inst.runStable();
+      running = true;
+      setStatus('running');
     } catch (e) {
       console.error('[scry/game] load failed', e);
       setStatus('error: ' + (e?.message || e));
@@ -272,8 +282,13 @@ export function createGame() {
   }
 
   function play() {
-    if (!gba || !gba.hasRom()) return;
+    if (!currentBytes) return;
     if (running) return;
+    if (!romLoaded) {
+      // First click: pay the load cost.
+      loadCartAndPlay();
+      return;
+    }
     canvas.focus();
     gba.runStable();
     running = true;
@@ -291,22 +306,26 @@ export function createGame() {
     if (!gba || !currentBytes) return;
     const wasRunning = running;
     pause();
-    loadCart(currentBytes).then(() => { if (wasRunning) play(); });
+    romLoaded = false;
+    if (wasRunning) loadCartAndPlay();
+    else setStatus('cart ready \u00B7 click PLAY');
   }
 
   playBtn.addEventListener('click', play);
   pauseBtn.addEventListener('click', pause);
   resetBtn.addEventListener('click', reset);
 
-  // React to file changes. The subscribe callback fires synchronously the
-  // first time with whatever bytes are already in the store, so we defer
-  // the actual emulator boot to the next rAF — by then the host has been
-  // appended to the DOM and the canvas has real layout dimensions.
+  // React to file changes. We DO NOT auto-load the cart into gbajs —
+  // setRom blocks the main thread for a second+ on a 16 MiB cart while
+  // it scans for save type. Instead we just show the header + hex
+  // viewer and wait for an explicit PLAY click. The user pays the freeze
+  // when they ask for it, with a clear "loading ROM…" status.
   fileStore.subscribe(state => {
     const bytes = state.bytes;
     if (gba && running) pause();
     if (!bytes) {
       currentBytes = null;
+      romLoaded = false;
       replaceChildren(cartHead, []);
       miniHex.setBytes(null);
       setStatus('idle');
@@ -314,21 +333,18 @@ export function createGame() {
     }
     if (bytes.byteLength < 0xC0 || bytes[0xB2] !== 0x96) {
       currentBytes = null;
+      romLoaded = false;
       replaceChildren(cartHead, []);
       miniHex.setBytes(null);
       setStatus('not a GBA cart');
       return;
     }
     currentBytes = bytes;
+    romLoaded = false;
     replaceChildren(cartHead, [buildCartHead(bytes)]);
     miniHex.setBytes(bytes);
     miniHex.jumpTo(0xA0); // land on the cartridge header
-    if (bootArmed) {
-      loadCart(bytes);
-    } else {
-      bootArmed = true;
-      requestAnimationFrame(() => loadCart(bytes));
-    }
+    setStatus('cart ready \u00B7 click PLAY');
   });
 
   return host;
