@@ -5,9 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Scry — Technical Breakdown</title>
 <meta name="description" content="V1 (pure JS) vs V2 (Rust + WASM): what each engine actually does, side by side.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23f6f1e8'/%3E%3Crect y='6' width='16' height='4' fill='%23a8e0c8'/%3E%3C/svg%3E">
 <style>
   :root {
     --bg:        #F2F1EC;
@@ -268,7 +266,6 @@
           <li><strong>DOM:</strong> a 30-line <code>el(tag, props, children)</code> helper. Never <code>innerHTML</code>.</li>
           <li><strong>ELF parser:</strong> hand-written, ~400 LOC, just the fields the UI uses.</li>
           <li><strong>WAV parser:</strong> hand-written RIFF chunk walker.</li>
-          <li><strong>GBA emulator:</strong> vendored <a href="https://github.com/endrift/gbajs">endrift/gbajs</a> (BSD-2). It runs the cart for real.</li>
           <li><strong>Disasm/EMU:</strong> a small RV32IMA decoder + interpreter, written by hand.</li>
         </ul>
         <p>Source size minified: a few hundred KB. Cold-start: one HTTP round-trip per module the browser
@@ -387,11 +384,6 @@
   </div>
 
   <div class="row-table">
-    <div class="row-line">
-      <div class="label">gbajs</div>
-      <div class="v1"><b>endrift/gbajs</b> &mdash; pure-JS GBA emulator, BSD-2.</div>
-      <div class="v2">Vendored under <code>web/v1/vendor/gbajs/</code>; see <code>NOTICE.md</code>.</div>
-    </div>
     <div class="row-line">
       <div class="label">goblin</div>
       <div class="v1"><b>m4b/goblin</b> &mdash; Rust binary parser.</div>

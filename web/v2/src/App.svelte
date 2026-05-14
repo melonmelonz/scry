@@ -7,6 +7,7 @@
   import Hex from './lib/Hex.svelte';
   import Wave from './lib/Wave.svelte';
   import Cart from './lib/Cart.svelte';
+  import Game from './lib/Game.svelte';
   import FileRail from './lib/FileRail.svelte';
   import GlobalDrop from './lib/GlobalDrop.svelte';
 
@@ -36,7 +37,8 @@
     inspect: 'click a section/segment/string -> jump in HEX',
     hex:     'paginate with PAGE/ROW, type a hex offset to jump, click the strip',
     wave:    'click the canvas to seek · play / stop control the buffer',
-    cart:    'rust-decoded header · emulator lives in V1',
+    cart:    'rust-decoded header · switch to GAME to play',
+    game:    'play the cart · arrows · Z/X = A/B · Enter = Start',
   };
 
   // When iframed under the unified shell (?embed=1) the parent paints brand,
@@ -88,7 +90,7 @@
         view = 'wave';
       } else if (format === 'gba') {
         try { gbaHeader = core.parse_gba(bytes); } catch { /* surface in Cart pane */ }
-        view = 'cart';
+        view = 'game';
       } else {
         view = 'hex';
       }
@@ -262,6 +264,12 @@
             title={format === 'gba' ? '' : 'CART is GBA-only'}
             onclick={() => (view = 'cart')}
           >CART</button>
+          <button
+            class:on={view === 'game'}
+            disabled={format !== 'gba'}
+            title={format === 'gba' ? '' : 'GAME is GBA-only'}
+            onclick={() => (view = 'game')}
+          >GAME</button>
           <button disabled title="DISASM lives in v1 today; v2 port is in flight">DISASM</button>
           <button disabled title="EMU lives in v1 today; v2 port is in flight">EMU</button>
           <button disabled title="TRACE lives in v1 today; v2 port is in flight">TRACE</button>
@@ -288,6 +296,8 @@
             <Wave bytes={file.bytes} />
           {:else if view === 'cart'}
             <Cart bytes={file.bytes} />
+          {:else if view === 'game'}
+            <Game bytes={file.bytes} header={gbaHeader} />
           {/if}
         {/if}
       </main>
@@ -297,8 +307,10 @@
   <footer class="s-status">
     <span>
       <span class="dot"></span>{file
-        ? 'READY · LOCAL · NO UPLOAD'
-        : (bootDone ? 'AWAITING FILE · LOCAL · NO UPLOAD' : `${bootTyped}\u2588`)}
+        ? (embedded ? 'READY' : 'READY · LOCAL · NO UPLOAD')
+        : (bootDone
+            ? (embedded ? 'AWAITING FILE' : 'AWAITING FILE · LOCAL · NO UPLOAD')
+            : `${bootTyped}\u2588`)}
     </span>
     {#if file}
       <span class="s-hint">{HINTS[view] ?? ''}</span>

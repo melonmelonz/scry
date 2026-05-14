@@ -5,9 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Scry v2 — Rust → WASM</title>
   <meta name="description" content="Scry v2: Rust core compiled to WebAssembly, Svelte 5 shell." />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23f6f1e8'/%3E%3Crect y='6' width='16' height='4' fill='%23a8e0c8'/%3E%3C/svg%3E" />
   <script>
     // Pre-paint theme to avoid a light-flash before the Svelte bundle mounts.
     try {
@@ -24,6 +22,33 @@
 </head>
 <body>
   <div id="app"></div>
+  <!-- Vendored gbajs2 (BSD-2). Classic scripts because gbajs uses
+       top-level `class GameBoyAdvance` + `let biosBin` declarations,
+       which live in classic-script lexical scope but are NOT window
+       properties. The inline bridge below republishes them so the
+       Game.svelte module can reach them. -->
+  <script src="./vendor/gbajs/js/util.js"></script>
+  <script src="./vendor/gbajs/js/core.js"></script>
+  <script src="./vendor/gbajs/js/arm.js"></script>
+  <script src="./vendor/gbajs/js/thumb.js"></script>
+  <script src="./vendor/gbajs/js/mmu.js"></script>
+  <script src="./vendor/gbajs/js/io.js"></script>
+  <script src="./vendor/gbajs/js/audio.js"></script>
+  <script src="./vendor/gbajs/js/video.js"></script>
+  <script src="./vendor/gbajs/js/video/proxy.js"></script>
+  <script src="./vendor/gbajs/js/video/software.js"></script>
+  <script src="./vendor/gbajs/js/irq.js"></script>
+  <script src="./vendor/gbajs/js/keypad.js"></script>
+  <script src="./vendor/gbajs/js/sio.js"></script>
+  <script src="./vendor/gbajs/js/savedata.js"></script>
+  <script src="./vendor/gbajs/js/gpio.js"></script>
+  <script src="./vendor/gbajs/js/gba.js"></script>
+  <script src="./vendor/gbajs/resources/xhr.js"></script>
+  <script src="./vendor/gbajs/resources/biosbin.js"></script>
+  <script>
+    window.GameBoyAdvance = GameBoyAdvance;
+    window.biosBin = biosBin;
+  </script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

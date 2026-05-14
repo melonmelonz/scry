@@ -1,23 +1,27 @@
 // GAME pane — runs a GBA cartridge in the browser via the vendored gbajs2
-// emulator (BSD-2, endrift + andychase). Penn's split-pane vision: the
-// emulator paints on the left, and the same workbench's HEX inspector
-// sits on the right so you can pause the game and scroll the ROM bytes.
+// emulator (BSD-2). Penn's split-pane vision: the emulator paints on the
+// left, a lightweight virtualized hex viewer on the right so you can
+// pause the game and scroll the ROM bytes in real time.
 //
-// gbajs2 registers itself as `window.GameBoyAdvance` (classic script,
-// not an ES module) and also ships `window.biosBin` — the HLE BIOS as a
-// pre-decoded ArrayBuffer — so we boot synchronously without a fetch.
+// We do NOT embed the full HEX module here. The HEX module precomputes
+// a Shannon entropy histogram across all bytes on every fileStore tick,
+// which for a 16 MiB cartridge is enough work to freeze the main thread
+// for several seconds. The viewer below is virtualized but does not do
+// any precompute — just rows of bytes, painted on demand.
 
 import { fileStore } from '../stores/file.js';
 import { el, replaceChildren } from '../dom.js';
-import { createHex } from './hex.js';
 
-// gbajs2's indirectCanvas path scales the 240x160 framebuffer up via
-// drawImage to whatever the visible canvas's intrinsic `width`/`height`
-// attributes are. We render at 2x so the panel reads from a classroom.
 const CANVAS_W = 480;
 const CANVAS_H = 320;
 
+const ROW_BYTES = 16;
+const ROW_HEIGHT = 20;
+const OVERSCAN = 6;
+
 function hex2(n) { return (n >>> 0).toString(16).padStart(2, '0').toUpperCase(); }
+function hex8(n) { return '0x' + (n >>> 0).toString(16).padStart(8, '0').toUpperCase(); }
+function asciiCh(n) { return (n >= 0x20 && n <= 0x7E) ? String.fromCharCode(n) : '.'; }
 
 function readAsciiZ(bytes, off, len) {
   let s = '';
@@ -35,23 +39,143 @@ function fmtBytes(n) {
   return `${(n / (1024 * 1024)).toFixed(2)} MiB`;
 }
 
-// Compact cartridge-header summary that hangs above the hex inspector.
-function buildHeader(bytes) {
-  const title  = readAsciiZ(bytes, 0xA0, 12);
-  const code   = readAsciiZ(bytes, 0xAC, 4);
-  const fixed  = bytes[0xB2];
-  const ok     = fixed === 0x96;
-
+function buildCartHead(bytes) {
+  const title = readAsciiZ(bytes, 0xA0, 12);
+  const code  = readAsciiZ(bytes, 0xAC, 4);
+  const fixed = bytes[0xB2];
   return el('div', { class: 'game-cart-head' }, [
     el('span', { class: 'k', text: 'CART' }),
     el('span', { class: 'v', text: `"${title || '(blank)'}"` }),
     el('span', { class: 'k', text: 'CODE' }),
     el('span', { class: 'v', text: code || '----' }),
     el('span', { class: 'k', text: 'FIXED' }),
-    el('span', { class: 'v', text: '0x' + hex2(fixed) + (ok ? ' OK' : ' BAD') }),
+    el('span', { class: 'v', text: '0x' + hex2(fixed) + (fixed === 0x96 ? ' OK' : ' BAD') }),
     el('span', { class: 'k', text: 'SIZE' }),
     el('span', { class: 'v', text: fmtBytes(bytes.byteLength) }),
   ]);
+}
+
+// ─── Lightweight virtualized hex viewer ────────────────────────────────
+// Used only inside the GAME pane. Renders only the visible window of
+// rows; no entropy compute, no overlays, no field tooltips. Just bytes.
+function createMiniHex() {
+  const host = el('section', { class: 'game-hex-mini' });
+
+  const titleEl = el('span', { class: 'game-hex-mini-title', text: 'ROM (empty)' });
+
+  const jumpInput = el('input', {
+    type: 'text', placeholder: '0x...', class: 'game-hex-mini-jump',
+    'aria-label': 'jump to offset',
+  });
+  const jumpForm = el('form', { class: 'game-hex-mini-jumpform' }, [
+    el('span', { class: 'game-hex-mini-jumplab', text: 'JUMP' }),
+    jumpInput,
+  ]);
+
+  const bar = el('div', { class: 'game-hex-mini-bar' }, [titleEl, jumpForm]);
+
+  const scroll = el('div', { class: 'game-hex-mini-scroll' });
+  const topPad = el('div', { class: 'game-hex-mini-pad' });
+  const bottomPad = el('div', { class: 'game-hex-mini-pad' });
+  scroll.appendChild(topPad);
+  scroll.appendChild(bottomPad);
+
+  host.appendChild(bar);
+  host.appendChild(scroll);
+
+  let bytes = null;
+  let totalRows = 0;
+  let viewportHeight = 0;
+  let rowPool = [];
+
+  function ensurePool(n) {
+    while (rowPool.length < n) {
+      rowPool.push(el('div', { class: 'game-hex-mini-row' }));
+    }
+  }
+
+  function buildRow(rowIdx) {
+    const off = rowIdx * ROW_BYTES;
+    const end = Math.min(bytes.byteLength, off + ROW_BYTES);
+    const slice = bytes.subarray(off, end);
+
+    let hexStr = '';
+    let ascStr = '';
+    for (let i = 0; i < slice.length; i++) {
+      hexStr += hex2(slice[i]);
+      ascStr += asciiCh(slice[i]);
+      if (i === 7) hexStr += '  ';
+      else if (i < slice.length - 1) hexStr += ' ';
+    }
+
+    return [
+      el('span', { class: 'addr', text: hex8(off) }),
+      el('span', { class: 'bytes', text: hexStr }),
+      el('span', { class: 'ascii', text: ascStr }),
+    ];
+  }
+
+  function render() {
+    if (!bytes) {
+      replaceChildren(scroll, [topPad, bottomPad]);
+      topPad.style.height = '0px';
+      bottomPad.style.height = '0px';
+      return;
+    }
+    const scrollTop = scroll.scrollTop;
+    const firstVisible = Math.floor(scrollTop / ROW_HEIGHT);
+    const rowCount = Math.ceil(viewportHeight / ROW_HEIGHT) + OVERSCAN * 2;
+    const start = Math.max(0, firstVisible - OVERSCAN);
+    const end = Math.min(totalRows, start + rowCount);
+    const count = end - start;
+
+    topPad.style.height = `${start * ROW_HEIGHT}px`;
+    bottomPad.style.height = `${(totalRows - end) * ROW_HEIGHT}px`;
+
+    ensurePool(count);
+    // Detach pool nodes beyond count.
+    for (let i = count; i < rowPool.length; i++) {
+      if (rowPool[i].parentNode) rowPool[i].remove();
+    }
+    for (let i = 0; i < count; i++) {
+      const cells = buildRow(start + i);
+      replaceChildren(rowPool[i], cells);
+      if (rowPool[i].parentNode !== scroll) {
+        scroll.insertBefore(rowPool[i], bottomPad);
+      }
+    }
+  }
+
+  function setBytes(b) {
+    bytes = b;
+    totalRows = b ? Math.ceil(b.byteLength / ROW_BYTES) : 0;
+    titleEl.textContent = b ? `ROM (${b.byteLength.toLocaleString()} bytes)` : 'ROM (empty)';
+    scroll.scrollTop = 0;
+    render();
+  }
+
+  function jumpTo(off) {
+    if (!bytes || off < 0 || off >= bytes.byteLength) return;
+    const row = Math.floor(off / ROW_BYTES);
+    scroll.scrollTop = Math.max(0, row * ROW_HEIGHT - viewportHeight / 2);
+    render();
+  }
+
+  scroll.addEventListener('scroll', render);
+  const ro = new ResizeObserver(() => {
+    viewportHeight = scroll.clientHeight;
+    render();
+  });
+  ro.observe(scroll);
+
+  jumpForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const raw = jumpInput.value.trim().replace(/^0x/i, '');
+    const n = parseInt(raw, 16);
+    if (!Number.isNaN(n)) jumpTo(n);
+  });
+
+  return { host, setBytes, jumpTo };
 }
 
 export function createGame() {
@@ -65,11 +189,8 @@ export function createGame() {
 
   // ---- left pane: emulator canvas + controls -----------------------------
   const canvas = el('canvas', { class: 'game-canvas' });
-  // Intrinsic canvas size; gbajs2's drawCallback scales 240x160 → these
-  // dimensions, regardless of where (or whether) the canvas is in the DOM.
   canvas.width = CANVAS_W;
   canvas.height = CANVAS_H;
-  // Focusable so arrow-keys go to the emulator instead of scrolling the page.
   canvas.tabIndex = 0;
 
   const status   = el('span',   { class: 'game-status', text: 'idle' });
@@ -86,21 +207,17 @@ export function createGame() {
     el('div', { class: 'game-controls' }, [playBtn, pauseBtn, resetBtn, status]),
   ]);
 
-  // ---- right pane: cartridge header + full HEX inspector -----------------
-  // createHex() subscribes to fileStore itself, so the hex view tracks the
-  // *same* bytes the emulator is running. Pause the game, scroll any
-  // offset, click a section in INSPECT — the hex on the right follows.
+  // ---- right pane: cart header + lightweight virtualized hex viewer ------
   const cartHead = el('div', { class: 'game-cart-head-wrap' });
-  const hexHost  = createHex();
-  hexHost.classList.add('game-hex-embed');
+  const miniHex = createMiniHex();
 
   const right = el('div', { class: 'game-right' }, [
     el('div', { class: 'game-bar' }, [
       el('span', { class: 'game-title', text: '[ ROM / INSPECTOR ]' }),
-      el('span', { class: 'game-hint',  text: 'pause \u00B7 scroll \u00B7 hover bytes' }),
+      el('span', { class: 'game-hint',  text: 'pause \u00B7 scroll \u00B7 jump 0x...' }),
     ]),
     cartHead,
-    hexHost,
+    miniHex.host,
   ]);
 
   const split = el('div', { class: 'game-split' }, [left, right]);
@@ -119,31 +236,34 @@ export function createGame() {
     gba = new window.GameBoyAdvance();
     gba.keypad.eatInput = true;
     gba.logLevel = gba.LOG_ERROR;
-    gba.setLogger((level, msg) => {
-      // Surface emulator errors in the status line rather than swallowing.
-      console.warn('[scry/game/gba]', msg);
-    });
+    gba.setLogger((level, msg) => console.warn('[scry/game/gba]', msg));
     gba.setCanvas(canvas);
     gba.setBios(window.biosBin);
     return gba;
   }
 
-  function loadCart(bytes) {
-    setStatus('loading\u2026');
+  // Load a cart asynchronously, yielding between heavy stages so the
+  // status text actually paints and the user sees progress instead of
+  // a frozen page.
+  async function loadCart(bytes) {
+    setStatus('booting\u2026');
+    await new Promise(r => requestAnimationFrame(r));
     try {
       const inst = ensureGba();
-      // gbajs2.setRom expects an ArrayBuffer. Slice handles the case where
-      // the file store handed us a Uint8Array view into a larger buffer.
+      setStatus('copying ROM\u2026');
+      await new Promise(r => requestAnimationFrame(r));
       const rom = bytes.buffer.slice(
         bytes.byteOffset,
         bytes.byteOffset + bytes.byteLength
       );
+      setStatus('parsing cart\u2026');
+      await new Promise(r => requestAnimationFrame(r));
       const ok = inst.setRom(rom);
       if (!ok) {
         setStatus('rom rejected');
         return;
       }
-      setStatus('paused');
+      setStatus('paused \u00B7 click PLAY');
       running = false;
     } catch (e) {
       console.error('[scry/game] load failed', e);
@@ -169,11 +289,9 @@ export function createGame() {
 
   function reset() {
     if (!gba || !currentBytes) return;
-    // Re-loading the ROM calls reset() internally and re-arms the MMU/regs.
     const wasRunning = running;
     pause();
-    loadCart(currentBytes);
-    if (wasRunning) play();
+    loadCart(currentBytes).then(() => { if (wasRunning) play(); });
   }
 
   playBtn.addEventListener('click', play);
@@ -190,19 +308,21 @@ export function createGame() {
     if (!bytes) {
       currentBytes = null;
       replaceChildren(cartHead, []);
+      miniHex.setBytes(null);
       setStatus('idle');
       return;
     }
-    // Defensive — main.js's router gates the tab, but this module may
-    // still be mounted in the DOM when a non-GBA file is selected.
     if (bytes.byteLength < 0xC0 || bytes[0xB2] !== 0x96) {
       currentBytes = null;
       replaceChildren(cartHead, []);
+      miniHex.setBytes(null);
       setStatus('not a GBA cart');
       return;
     }
     currentBytes = bytes;
-    replaceChildren(cartHead, [buildHeader(bytes)]);
+    replaceChildren(cartHead, [buildCartHead(bytes)]);
+    miniHex.setBytes(bytes);
+    miniHex.jumpTo(0xA0); // land on the cartridge header
     if (bootArmed) {
       loadCart(bytes);
     } else {

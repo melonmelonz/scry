@@ -7,6 +7,11 @@ const BOOT_KEY = 'scry-booted-v1';
 const BOOT_MSG = 'scry \u00B7 awaiting binary';
 const BOOT_TICK_MS = 60;
 
+// Embedded inside the unified shell, the parent's .foot already shows
+// "LOCAL · NO UPLOAD · NO LOGIN". Drop the duplicate from our own bar so
+// the two don't stack visually.
+const EMBEDDED = document.documentElement.hasAttribute('data-embedded');
+
 export function createStatusBar() {
   const host = document.createElement('footer');
   host.className = 's-status';
@@ -23,7 +28,9 @@ export function createStatusBar() {
     if (booting) return; // boot animation owns the bar until it finishes.
     const has = fileStore.get().bytes !== null;
     const dot = el('span', { class: 'dot' });
-    const leftText = has ? 'READY \u00B7 LOCAL \u00B7 NO UPLOAD' : 'AWAITING FILE \u00B7 LOCAL \u00B7 NO UPLOAD';
+    const leftText = EMBEDDED
+      ? (has ? 'READY' : 'AWAITING FILE')
+      : (has ? 'READY \u00B7 LOCAL \u00B7 NO UPLOAD' : 'AWAITING FILE \u00B7 LOCAL \u00B7 NO UPLOAD');
     const leftSpan = el('span', {}, [dot, leftText]);
 
     const hint = hintStore.get();
