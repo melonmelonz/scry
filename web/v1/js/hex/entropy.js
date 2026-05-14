@@ -4,6 +4,13 @@
 
 const LN2 = Math.log(2);
 
+// Per-block byte cap. On a 16 MiB cart with 64 blocks, each block is ~256 KiB
+// and a full pass is still hundreds of ms on the main thread — enough to feel
+// like a freeze when the HEX tab is first mounted. For visualisation we only
+// need the rough shape of the curve, so we sample within each block once the
+// per-block window exceeds this cap.
+const ENTROPY_PER_BLOCK_CAP = 32 * 1024;
+
 export function entropyBlocks(bytes, blocks = 64) {
   const out = new Float32Array(blocks);
   if (!bytes || bytes.byteLength === 0) return out;
@@ -13,10 +20,18 @@ export function entropyBlocks(bytes, blocks = 64) {
   for (let b = 0; b < blocks; b++) {
     const start = Math.floor((b * total) / blocks);
     const end = Math.floor(((b + 1) * total) / blocks);
-    const n = end - start;
-    if (n <= 0) { out[b] = 0; continue; }
+    const span = end - start;
+    if (span <= 0) { out[b] = 0; continue; }
     hist.fill(0);
-    for (let i = start; i < end; i++) hist[bytes[i]]++;
+    let n = 0;
+    if (span <= ENTROPY_PER_BLOCK_CAP) {
+      for (let i = start; i < end; i++) hist[bytes[i]]++;
+      n = span;
+    } else {
+      const stride = Math.ceil(span / ENTROPY_PER_BLOCK_CAP);
+      for (let i = start; i < end; i += stride) { hist[bytes[i]]++; n++; }
+    }
+    if (n <= 0) { out[b] = 0; continue; }
     let h = 0;
     for (let v = 0; v < 256; v++) {
       const c = hist[v];
