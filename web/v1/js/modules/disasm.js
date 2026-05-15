@@ -27,6 +27,23 @@ function findTextSection(elf) {
       s.sh_type === 1 && (Number(s.sh_flags) & 0x4) // SHF_EXECINSTR
     );
   }
+  // Fall back to the first executable PT_LOAD segment (minimal ELFs with
+  // no section headers, e.g. the hand-rolled demo samples).
+  if (!text && elf.segments) {
+    const load = elf.segments.find(s =>
+      s.p_type === 1 && (Number(s.p_flags) & 0x1) // PT_LOAD + PF_X
+    );
+    if (load && Number(load.p_filesz) > 0) {
+      text = {
+        name: '(PT_LOAD)',
+        sh_offset: Number(load.p_offset),
+        sh_size:   Number(load.p_filesz),
+        sh_addr:   Number(load.p_vaddr),
+        sh_type:   1,
+        sh_flags:  0x6,
+      };
+    }
+  }
   return text;
 }
 
