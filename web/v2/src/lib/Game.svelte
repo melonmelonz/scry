@@ -27,7 +27,7 @@
   let livePc = $state(null);
   let pcMode = $state('ARM');
   let inCart = $state(false);
-  let follow = $state(false);
+  let follow = $state(true);
   let pcTrail = $state([]);
   let clickNote = $state('');
   let pcRaf = 0;
@@ -226,7 +226,7 @@
       cursor = null;
       livePc = null;
       inCart = false;
-      follow = false;
+      follow = true;
       pcTrail = [];
       clickNote = '';
       romLoaded = false;

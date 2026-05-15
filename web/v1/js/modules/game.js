@@ -33,7 +33,7 @@ export function createGame() {
   let currentBytes = null;
   let romLoaded = false;
   let running = false;
-  let follow = false;
+  let follow = true;
   let pcCursor = null;
   let livePc = null;
   let pcMode = 'ARM';
@@ -62,6 +62,8 @@ export function createGame() {
   const followLab = el('span', { class: 'g-follow-lab', text: 'FOLLOW PC' });
   const followBtn = el('button', { class: 'g-follow', type: 'button' }, [followLed, followLab]);
   followBtn.title = "Auto-scroll the ROM view to wherever the CPU's program counter currently is";
+  followBtn.classList.add('g-follow-on');
+  followLab.textContent = 'FOLLOWING PC';
 
   const statusEl = el('span', { class: 'g-status', text: 'cart ready \u00B7 click PLAY' });
   const hintEl   = el('span', { class: 'g-hint', text: 'arrows = D-pad \u00B7 Z/X = A/B \u00B7 Enter = Start' });
@@ -77,6 +79,7 @@ export function createGame() {
 
   const trailHost = el('div', { class: 'g-pc-trail' });
   const miniHex = createMiniHex({ onByteClick: handleMiniHexClick });
+  miniHex.setFollow(true);
   const gRight  = el('div', { class: 'g-right' }, [subBar, miniHex.host, trailHost]);
 
   // ── split ─────────────────────────────────────────────────────────────
@@ -311,9 +314,9 @@ export function createGame() {
       livePc = null;
       pcTrail = [];
       inCart = false;
-      follow = false;
-      followBtn.classList.remove('g-follow-on');
-      followLab.textContent = 'FOLLOW PC';
+      follow = true;
+      followBtn.classList.add('g-follow-on');
+      followLab.textContent = 'FOLLOWING PC';
       gMeta.textContent = '';
       miniHex.setBytes(null);
       setStatus('idle');

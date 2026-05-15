@@ -1,7 +1,7 @@
 import { Store } from '../store.js';
 
 export const gamePcStore = new Store({
-  follow: false,
+  follow: true,
   running: false,
   liveAddress: null,
   label: 'IDLE',
