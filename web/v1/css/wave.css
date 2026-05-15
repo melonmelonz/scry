@@ -1,4 +1,6 @@
-/* WAVE pane — RIFF/WAVE PCM viewer + Web Audio playback. */
+/* WAVE pane — RIFF/WAVE PCM viewer + Web Audio playback.
+   Verbatim port of v2's Wave.svelte <style> block so the v1/v2 toggle
+   shows the same surface from both engines. */
 
 .w-wrap {
   display: grid;
@@ -6,7 +8,6 @@
   height: 100%;
   padding: 0 22px 22px;
   min-height: 0;
-  /* Waveform canvas palette — keyed to the apothecary tokens. */
   --w-bg: var(--paper);
   --w-grid: var(--rule-soft);
   --w-peak: var(--ink-dim);
@@ -14,120 +15,36 @@
   --w-accent: var(--mint-deep);
 }
 :root[data-theme='dark'] .w-wrap {
-  --w-bg: var(--paper);
-  --w-grid: var(--rule-soft);
-  --w-peak: var(--ink-dim);
-  --w-rms: var(--ink);
   --w-accent: var(--mint);
 }
-
 .w-bar {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 16px 0 12px;
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 18px; padding: 16px 0 12px;
   border-bottom: 1px solid var(--grey);
 }
-.w-title {
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.w-meta {
-  font-size: 10px;
-  color: var(--mint-deep);
-  letter-spacing: 0.08em;
-}
+.w-title { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.w-meta  { font-size: 10px; color: var(--mint-deep); letter-spacing: 0.08em; }
 
-.w-header {
-  padding: 12px 0;
-  border-bottom: 1px solid var(--rule-soft);
-}
-.w-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 18px;
-}
-.w-col {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.w-row {
-  display: flex;
-  gap: 12px;
-  align-items: baseline;
-  font-size: 11px;
-  letter-spacing: 0.02em;
-}
-.w-row .l {
-  width: 86px;
-  flex-shrink: 0;
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.w-row .v {
-  color: var(--ink);
-}
-.w-empty {
-  padding: 28px 0;
-  color: var(--muted);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  font-style: italic;
-}
+.w-header { padding: 12px 0; border-bottom: 1px solid var(--rule-soft); }
+.w-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+.w-col  { display: flex; flex-direction: column; gap: 4px; }
+.w-row  { display: flex; gap: 12px; align-items: baseline; font-size: 11px; letter-spacing: 0.02em; }
+.w-row .l { width: 86px; flex-shrink: 0; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.w-row .v { color: var(--ink); }
+.w-empty { padding: 28px 0; color: var(--muted); font-size: 11px; font-style: italic; }
 
-.w-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-}
+.w-controls { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
 .w-play, .w-stop {
-  font: inherit;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font: inherit; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
   padding: 6px 14px;
-  background: var(--paper);
-  color: var(--ink);
-  border: 1px solid var(--grey);
+  background: var(--paper); color: var(--ink); border: 1px solid var(--grey);
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 .w-play:hover { background: var(--mint-pale); border-color: var(--mint-deep); color: var(--mint-deep); }
 .w-stop:hover { background: var(--surface-2); border-color: var(--ink-dim); }
-.w-clock {
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 0.04em;
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
-}
+.w-clock { font-size: 11px; color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
 
-.w-canvas-wrap {
-  position: relative;
-  width: 100%;
-  min-height: 0;
-  border: 1px solid var(--grey);
-  background: var(--paper);
-}
-.w-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  cursor: crosshair;
-}
-
-.w-note {
-  font-size: 10px;
-  color: var(--muted);
-  letter-spacing: 0.04em;
-  padding: 8px 0 0;
-  margin: 0;
-  font-style: italic;
-}
+.w-canvas-wrap { position: relative; width: 100%; min-height: 0; border: 1px solid var(--grey); background: var(--paper); }
+.w-canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+.w-note { font-size: 10px; color: var(--muted); padding: 8px 0 0; margin: 0; font-style: italic; }

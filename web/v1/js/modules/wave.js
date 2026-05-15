@@ -1,18 +1,19 @@
+// WAVE pane — DOM-mirror of v2's Wave.svelte so the parent shell's V1/V2
+// toggle shows the same surface from both engines. Class names are `w-*`
+// and css/wave.css is a verbatim port of v2's <style> block.
+//
+// The decoder stays pure-JS (format/wav.js) — v2 routes through Rust+WASM,
+// but the report shape we feed the renderer is identical. Reactivity is
+// Store pub/sub instead of Svelte $effect. Visible output is intended to
+// be pixel-for-pixel identical to Wave.svelte.
+
 import { el, replaceChildren } from '../dom.js';
 import { fileStore } from '../stores/file.js';
 import { parseWav } from '../format/wav.js';
 import { setHint, clearHint } from '../stores/hint.js';
+import { router } from '../stores/router.js';
+import { hex8, fmtBytes } from '../fmt.js';
 
-// Wave module — RIFF/WAVE viewer.
-// Renders the fmt+chunk header, a peak/rms waveform on a canvas, and lets you
-// play the buffer through Web Audio. The canvas redraws on resize.
-
-function hex8(n) { return '0x' + (n >>> 0).toString(16).padStart(8, '0').toUpperCase(); }
-function fmtBytes(n) {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KiB`;
-  return `${(n / 1024 / 1024).toFixed(2)} MiB`;
-}
 function fmtDuration(s) {
   if (s < 1) return `${(s * 1000).toFixed(0)} ms`;
   if (s < 60) return `${s.toFixed(2)} s`;
@@ -47,7 +48,6 @@ function drawWaveform(canvas, envelope, opts = {}) {
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
 
-  // Zero line + 50% gridlines.
   ctx.strokeStyle = grid;
   ctx.lineWidth = 1;
   const mid = H / 2;
@@ -56,25 +56,21 @@ function drawWaveform(canvas, envelope, opts = {}) {
     ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
   }
 
-  // Per-bucket peak + RMS bars.
   const n = envelope.length;
   const bw = W / n;
   for (let i = 0; i < n; i++) {
     const e = envelope[i];
     const x = Math.floor(i * bw);
     const w = Math.max(1, Math.floor(bw) - 1);
-    // peak
     const yTop = mid - e.max * mid;
     const yBot = mid - e.min * mid;
     ctx.fillStyle = peak;
     ctx.fillRect(x, Math.floor(yTop), w, Math.max(1, Math.ceil(yBot - yTop)));
-    // rms band
     const r = e.rms * mid;
     ctx.fillStyle = rms;
     ctx.fillRect(x, Math.floor(mid - r), w, Math.max(1, Math.ceil(2 * r)));
   }
 
-  // Playhead.
   if (opts.playhead != null) {
     const x = Math.floor(opts.playhead * W);
     ctx.strokeStyle = accent;
@@ -86,68 +82,78 @@ function drawWaveform(canvas, envelope, opts = {}) {
 export function createWave() {
   const root = el('div', { class: 'w-wrap' });
 
+  // ── top bar (always rendered) ─────────────────────────────────────────
   const titleEl = el('span', { class: 'w-title', text: '[ WAVE / PCM AUDIO ]' });
   const metaEl  = el('span', { class: 'w-meta',  text: '' });
   const bar = el('div', { class: 'w-bar' }, [titleEl, metaEl]);
   root.appendChild(bar);
 
+  // ── ready-state subtree (header + controls + canvas + note) ──────────
+  // Built once, mounted/unmounted whole. Matches v2's `{#if report}` block.
   const headerPanel = el('div', { class: 'w-header' });
-  root.appendChild(headerPanel);
 
-  // Playback controls.
   const playBtn = el('button', { class: 'w-play', text: 'PLAY' });
   const stopBtn = el('button', { class: 'w-stop', text: 'STOP' });
   const clock   = el('span', { class: 'w-clock', text: '0:00 / 0:00' });
   const controls = el('div', { class: 'w-controls' }, [playBtn, stopBtn, clock]);
-  root.appendChild(controls);
 
-  // Canvas area.
   const canvas = el('canvas', { class: 'w-canvas' });
   const canvasWrap = el('div', { class: 'w-canvas-wrap' }, [canvas]);
-  root.appendChild(canvasWrap);
 
   const note = el('p', {
     class: 'w-note',
     text: 'Hand-rolled RIFF/WAVE parser. PCM-decoded into Float32 for the canvas envelope and Web Audio playback. Click the canvas to seek.'
   });
-  root.appendChild(note);
 
-  // Per-render state.
+  const readyNodes = [headerPanel, controls, canvasWrap, note];
+
+  // ── per-render state ─────────────────────────────────────────────────
   let parsed = null;
   let audioCtx = null;
   let source = null;
   let buffer = null;
-  let playStartTime = 0;     // audioCtx.currentTime at .start()
-  let playStartOffset = 0;   // seek position in seconds at .start()
+  let playStartTime = 0;
+  let playStartOffset = 0;
   let raf = 0;
+
+  function setBarMeta(text) {
+    metaEl.textContent = text;
+    // v2 only renders .w-meta when report exists. Approximate by hiding
+    // the span when empty so the bar's flex layout matches.
+    metaEl.style.display = text ? '' : 'none';
+  }
+
+  function showEmpty(message) {
+    parsed = null;
+    buffer = null;
+    setBarMeta('');
+    replaceChildren(root, [bar, el('div', { class: 'w-empty', text: message })]);
+  }
+
+  function showReady() {
+    // Mount the full ready-state subtree under root (bar stays as first child).
+    replaceChildren(root, [bar, ...readyNodes]);
+  }
 
   function render() {
     const bytes = fileStore.get().bytes;
     if (!bytes) {
-      parsed = null;
-      buffer = null;
-      replaceChildren(headerPanel, [
-        el('div', { class: 'w-empty', text: 'No file loaded.' })
-      ]);
-      metaEl.textContent = '';
-      clock.textContent = '0:00 / 0:00';
-      const ctx = canvas.getContext('2d');
-      ctx && ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // v2's Wave is only mounted when a wav is loaded; if v1 lands here
+      // with no bytes, mirror v2's null-state "Decoding…" empty.
+      showEmpty('Decoding\u2026');
       return;
     }
     try {
       parsed = parseWav(bytes);
     } catch (err) {
-      parsed = null;
-      replaceChildren(headerPanel, [
-        el('div', { class: 'w-empty', text: `Not a parseable WAV: ${err.message}` })
-      ]);
+      showEmpty(`Not a parseable WAV: ${err.message}`);
       return;
     }
     const { fmt, duration, totalFrames, chunks, dataLen } = parsed;
 
-    metaEl.textContent =
-      `${fmt.channels}ch @ ${fmt.sampleRate} Hz · ${fmt.bitsPerSample}-bit · ${fmtDuration(duration)}`;
+    showReady();
+
+    setBarMeta(`${fmt.channels}ch @ ${fmt.sampleRate} Hz \u00B7 ${fmt.bitsPerSample}-bit \u00B7 ${fmtDuration(duration)}`);
     clock.textContent = `0:00 / ${fmtDuration(duration)}`;
 
     const tagFmt = fmt.format === 1 ? 'PCM (int)' : fmt.format === 3 ? 'IEEE float' : `tag ${fmt.format}`;
@@ -242,6 +248,8 @@ export function createWave() {
     playFrom(x * parsed.duration);
   });
 
+  // Hint bar nicety — invisible in v2 because v2 doesn't have a hint bar,
+  // so this can't break pixel parity.
   canvas.addEventListener('mousemove', (e) => {
     if (!parsed) return;
     const rect = canvas.getBoundingClientRect();
@@ -250,14 +258,23 @@ export function createWave() {
   });
   canvas.addEventListener('mouseleave', () => clearHint());
 
-  // Redraw on resize (the canvas is fluid-width).
+  // Redraw on resize (canvas is fluid-width).
   const ro = new ResizeObserver(() => {
     if (parsed) drawWaveform(canvas, parsed.envelope, { playhead: 0 });
   });
   ro.observe(canvasWrap);
 
-  fileStore.subscribe(render);
-  render();
+  // fileStore.subscribe fires immediately with the current state; the
+  // initial null-bytes case is handled inside render() via showEmpty().
+  const waveFileSub = () => render();
+  waveFileSub.__dbg = 'wave.fileSub';
+  fileStore.subscribe(waveFileSub);
+
+  // Stop audio playback whenever the user leaves the WAVE tab. v1's
+  // previous wave.js didn't do this; v2 does it via $effect cleanup.
+  const waveRouteSub = (route) => { if (route !== 'wave') stop(); };
+  waveRouteSub.__dbg = 'wave.routeSub';
+  router.subscribe(waveRouteSub);
 
   return root;
 }

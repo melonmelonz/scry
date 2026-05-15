@@ -26,6 +26,21 @@ export const ELF32_HEADER_OVERLAY = [
   { offset: 0x32, size: 2, name: 'e_shstrndx',         type: 'u16', endian: 'le' }
 ];
 
+export const GBA_HEADER_OVERLAY = [
+  { offset: 0x000, size: 4,   name: 'entry.branch',          type: 'bytes',  description: 'ARM branch executed by the BIOS after header validation' },
+  { offset: 0x004, size: 156, name: 'nintendo.logo',         type: 'bytes',  description: 'Fixed Nintendo logo bitmap bytes checked by boot ROM' },
+  { offset: 0x0A0, size: 12,  name: 'game.title',            type: 'string', description: 'ASCII cartridge title' },
+  { offset: 0x0AC, size: 4,   name: 'game.code',             type: 'string', description: 'Four-character game code' },
+  { offset: 0x0B0, size: 2,   name: 'maker.code',            type: 'string', description: 'Two-character maker code' },
+  { offset: 0x0B2, size: 1,   name: 'fixed.0x96',            type: 'u8',     description: 'Fixed value required by the GBA BIOS' },
+  { offset: 0x0B3, size: 1,   name: 'unit.code',             type: 'u8',     description: 'Usually 0x00 for GBA' },
+  { offset: 0x0B4, size: 1,   name: 'device.type',           type: 'u8',     description: 'Device type / debug field' },
+  { offset: 0x0B5, size: 7,   name: 'reserved',              type: 'bytes' },
+  { offset: 0x0BC, size: 1,   name: 'software.version',      type: 'u8' },
+  { offset: 0x0BD, size: 1,   name: 'complement.checksum',   type: 'u8',     description: 'Header checksum over bytes 0xA0..0xBC' },
+  { offset: 0x0BE, size: 2,   name: 'reserved.tail',         type: 'bytes' },
+];
+
 export function findOverlayAt(schema, offset) {
   for (const f of schema) {
     if (offset >= f.offset && offset < f.offset + f.size) return f;
@@ -70,8 +85,8 @@ export function formatDecoded(v, f) {
   return String(v);
 }
 
-// Pick the right overlay schema for a detected format. Plan 1 ships ELF only.
 export function pickOverlay(formatKind) {
   if (formatKind === 'elf') return ELF32_HEADER_OVERLAY;
+  if (formatKind === 'gba') return GBA_HEADER_OVERLAY;
   return [];
 }

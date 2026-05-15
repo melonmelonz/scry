@@ -1,7 +1,7 @@
 /* ─── App frame ────────────────────────────── */
 .app {
   display: grid;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: auto 1fr auto;
   height: 100%;
 }
 
@@ -160,6 +160,14 @@
   margin-top: var(--sp-2);
   line-height: 1.5;
 }
+
+.s-work {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+  min-width: 0;
+}
+.s-work:not(:has(.s-tabs)) { grid-template-rows: 1fr; }
 
 .s-main {
   overflow: auto;

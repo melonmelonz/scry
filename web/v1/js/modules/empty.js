@@ -132,7 +132,13 @@ export function createEmpty() {
     zone.classList.remove('over');
   });
   host.addEventListener('drop', (e) => {
+    // Stop here: main.js attaches a window-level drop handler that also calls
+    // ingestFile. Without stopPropagation the same file ingests twice in
+    // parallel, firing fileStore.set 6+ times and re-running every subscriber
+    // (entropy strip, hex render) each time. On a 16 MiB GBA cart the page
+    // feels stuck under that load.
     e.preventDefault();
+    e.stopPropagation();
     zone.classList.remove('over');
     const file = e.dataTransfer?.files?.[0];
     if (file) ingestFile(file);

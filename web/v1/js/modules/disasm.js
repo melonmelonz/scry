@@ -1,8 +1,7 @@
 import { fileStore } from '../stores/file.js';
-import { detectFormat } from '../format/detect.js';
 import { parseElf } from '../elf/parse.js';
 import { disassembleRange } from '../disasm/rv32.js';
-import { visibleRange } from '../hex/virtualize.js';
+import { visibleRange, virtualGeometry, virtualToPhysical } from '../hex/virtualize.js';
 import { el, replaceChildren } from '../dom.js';
 import { navStore } from '../stores/nav.js';
 import { setHint, clearHint } from '../stores/hint.js';
@@ -70,14 +69,16 @@ export function createDisasm() {
   const bar = el('header', { class: 'd-bar' }, [titleEl, archEl, sectionLabel, gotoForm]);
 
   const scroll = el('div', { class: 'd-scroll' });
-  const topSpacer = document.createElement('div');
-  const bottomSpacer = document.createElement('div');
-  scroll.appendChild(topSpacer);
-  scroll.appendChild(bottomSpacer);
+  const sizer = document.createElement('div');
+  sizer.className = 'd-sizer';
+  sizer.style.position = 'relative';
+  sizer.style.width = '100%';
+  scroll.appendChild(sizer);
 
   const wrap = el('section', { class: 'd-wrap' }, [bar, warn, scroll]);
 
   const rowPool = [];
+  let geom = { physicalPx: 0, scale: 1 };
 
   function refreshFromFile() {
     const bytes = fileStore.get().bytes;
@@ -87,12 +88,13 @@ export function createDisasm() {
 
     if (!bytes) {
       replaceChildren(warn, []);
-      replaceChildren(scroll, [topSpacer, bottomSpacer]);
+      for (const r of rowPool) { if (r.parentNode) r.remove(); }
+      sizer.style.height = '0px';
       sectionLabel.textContent = '';
       return;
     }
 
-    if (detectFormat(bytes) === 'elf') {
+    if (fileStore.get().kind === 'elf') {
       try {
         elf = parseElf(bytes);
         textSection = findTextSection(elf);
@@ -157,18 +159,19 @@ export function createDisasm() {
   function render() {
     const bytes = fileStore.get().bytes;
     if (!bytes || totalInstrs === 0) {
-      replaceChildren(scroll, [topSpacer, bottomSpacer]);
-      topSpacer.style.height = '0px';
-      bottomSpacer.style.height = '0px';
+      for (const r of rowPool) { if (r.parentNode) r.remove(); }
+      sizer.style.height = '0px';
       return;
     }
 
+    geom = virtualGeometry(totalInstrs, ROW_HEIGHT);
+    sizer.style.height = `${geom.physicalPx}px`;
+
     const range = visibleRange({
       scrollTop, viewportHeight,
-      rowHeight: ROW_HEIGHT, totalRows: totalInstrs, overscan: OVERSCAN
+      rowHeight: ROW_HEIGHT, totalRows: totalInstrs, overscan: OVERSCAN,
+      scale: geom.scale
     });
-    topSpacer.style.height = `${range.topPad}px`;
-    bottomSpacer.style.height = `${range.bottomPad}px`;
 
     const count = range.end - range.start;
     ensureRowPool(count);
@@ -186,8 +189,13 @@ export function createDisasm() {
     for (let i = 0; i < count; i++) {
       const r = rowPool[i];
       r.className = 'd-row';
+      r.style.position = 'absolute';
+      r.style.left = '0';
+      r.style.right = '0';
+      r.style.top = `${range.topPx + i * ROW_HEIGHT}px`;
+      r.style.height = `${ROW_HEIGHT}px`;
       replaceChildren(r, buildRow(decoded[i]));
-      if (r.parentNode !== scroll) scroll.insertBefore(r, bottomSpacer);
+      if (r.parentNode !== sizer) sizer.appendChild(r);
     }
   }
 
@@ -198,15 +206,22 @@ export function createDisasm() {
       setHint('disasm', `address ${hex(addr)} outside ${hex(baseAddr)} \u2026 ${hex(baseAddr + totalInstrs * 4)}`);
       return false;
     }
-    scroll.scrollTop = idx * ROW_HEIGHT;
+    scroll.scrollTop = virtualToPhysical(idx * ROW_HEIGHT, geom.scale);
     setHint('disasm', `at ${hex(addr)} \u00B7 instr ${idx.toLocaleString()} of ${totalInstrs.toLocaleString()}`);
     return true;
   }
 
+  // rAF-coalesce burst scroll events; same rationale as hex.js — without
+  // it the virtualizer rebuilds the row window on every event during a fling.
+  let scrollRaf = 0;
   scroll.addEventListener('scroll', () => {
-    scrollTop = scroll.scrollTop;
-    render();
-  });
+    if (scrollRaf) return;
+    scrollRaf = requestAnimationFrame(() => {
+      scrollRaf = 0;
+      scrollTop = scroll.scrollTop;
+      render();
+    });
+  }, { passive: true });
 
   gotoForm.addEventListener('submit', (e) => {
     e.preventDefault();

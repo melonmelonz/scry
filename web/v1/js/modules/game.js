@@ -1,301 +1,234 @@
-// GAME pane — runs a GBA cartridge in the browser via the vendored gbajs2
-// emulator (BSD-2). Penn's split-pane vision: the emulator paints on the
-// left, a lightweight virtualized hex viewer on the right so you can
-// pause the game and scroll the ROM bytes in real time.
+// GAME pane — DOM-mirror of v2's Game.svelte (lib/Game.svelte) so the
+// parent shell's V1/V2 toggle shows the same surface from both engines.
+// All class names are `g-*` and the CSS in css/game.css is a verbatim
+// port of v2's <style> block.
 //
-// We do NOT embed the full HEX module here. The HEX module precomputes
-// a Shannon entropy histogram across all bytes on every fileStore tick,
-// which for a 16 MiB cartridge is enough work to freeze the main thread
-// for several seconds. The viewer below is virtualized but does not do
-// any precompute — just rows of bytes, painted on demand.
+// Implementation differences from v2 are limited to the reactivity
+// layer (Store pub/sub vs Svelte $effect) — the visible output is
+// identical pixel-for-pixel.
 
 import { fileStore } from '../stores/file.js';
 import { el, replaceChildren } from '../dom.js';
+import { router } from '../stores/router.js';
+import { gotoIn } from '../stores/nav.js';
+import { setHint, clearHint } from '../stores/hint.js';
+import { publishGamePc } from '../stores/gamepc.js';
+import { describeGbaAddress, currentGbaMode, currentGbaPc } from '../gba/map.js';
+import { hex2, hex8, fmtBytes, readAsciiZ } from '../fmt.js';
+import { createMiniHex } from './minihex.js';
 
 const CANVAS_W = 480;
 const CANVAS_H = 320;
+const PC_THROTTLE_MS = 100;
+const PC_TRAIL_MAX = 8;
 
-const ROW_BYTES = 16;
-const ROW_HEIGHT = 20;
-const OVERSCAN = 6;
-
-function hex2(n) { return (n >>> 0).toString(16).padStart(2, '0').toUpperCase(); }
-function hex8(n) { return '0x' + (n >>> 0).toString(16).padStart(8, '0').toUpperCase(); }
-function asciiCh(n) { return (n >= 0x20 && n <= 0x7E) ? String.fromCharCode(n) : '.'; }
-
-function readAsciiZ(bytes, off, len) {
-  let s = '';
-  for (let i = 0; i < len; i++) {
-    const b = bytes[off + i];
-    if (b === 0) break;
-    s += (b >= 0x20 && b <= 0x7E) ? String.fromCharCode(b) : '.';
-  }
-  return s.trim();
-}
-
-function fmtBytes(n) {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KiB`;
-  return `${(n / (1024 * 1024)).toFixed(2)} MiB`;
-}
-
-function buildCartHead(bytes) {
-  const title = readAsciiZ(bytes, 0xA0, 12);
-  const code  = readAsciiZ(bytes, 0xAC, 4);
-  const fixed = bytes[0xB2];
-  return el('div', { class: 'game-cart-head' }, [
-    el('span', { class: 'k', text: 'CART' }),
-    el('span', { class: 'v', text: `"${title || '(blank)'}"` }),
-    el('span', { class: 'k', text: 'CODE' }),
-    el('span', { class: 'v', text: code || '----' }),
-    el('span', { class: 'k', text: 'FIXED' }),
-    el('span', { class: 'v', text: '0x' + hex2(fixed) + (fixed === 0x96 ? ' OK' : ' BAD') }),
-    el('span', { class: 'k', text: 'SIZE' }),
-    el('span', { class: 'v', text: fmtBytes(bytes.byteLength) }),
-  ]);
-}
-
-// ─── Lightweight virtualized hex viewer ────────────────────────────────
-// Used only inside the GAME pane. Renders only the visible window of
-// rows; no entropy compute, no overlays, no field tooltips. Just bytes.
-function createMiniHex() {
-  const host = el('section', { class: 'game-hex-mini' });
-
-  const titleEl = el('span', { class: 'game-hex-mini-title', text: 'ROM (empty)' });
-
-  const jumpInput = el('input', {
-    type: 'text', placeholder: '0x...', class: 'game-hex-mini-jump',
-    'aria-label': 'jump to offset',
-  });
-  const jumpForm = el('form', { class: 'game-hex-mini-jumpform' }, [
-    el('span', { class: 'game-hex-mini-jumplab', text: 'JUMP' }),
-    jumpInput,
-  ]);
-
-  const bar = el('div', { class: 'game-hex-mini-bar' }, [titleEl, jumpForm]);
-
-  const scroll = el('div', { class: 'game-hex-mini-scroll' });
-  const topPad = el('div', { class: 'game-hex-mini-pad' });
-  const bottomPad = el('div', { class: 'game-hex-mini-pad' });
-  scroll.appendChild(topPad);
-  scroll.appendChild(bottomPad);
-
-  host.appendChild(bar);
-  host.appendChild(scroll);
-
-  let bytes = null;
-  let totalRows = 0;
-  let viewportHeight = 0;
-  let rowPool = [];
-
-  function ensurePool(n) {
-    while (rowPool.length < n) {
-      rowPool.push(el('div', { class: 'game-hex-mini-row' }));
-    }
-  }
-
-  function buildRow(rowIdx) {
-    const off = rowIdx * ROW_BYTES;
-    const end = Math.min(bytes.byteLength, off + ROW_BYTES);
-    const slice = bytes.subarray(off, end);
-
-    let hexStr = '';
-    let ascStr = '';
-    for (let i = 0; i < slice.length; i++) {
-      hexStr += hex2(slice[i]);
-      ascStr += asciiCh(slice[i]);
-      if (i === 7) hexStr += '  ';
-      else if (i < slice.length - 1) hexStr += ' ';
-    }
-
-    return [
-      el('span', { class: 'addr', text: hex8(off) }),
-      el('span', { class: 'bytes', text: hexStr }),
-      el('span', { class: 'ascii', text: ascStr }),
-    ];
-  }
-
-  function render() {
-    if (!bytes) {
-      replaceChildren(scroll, [topPad, bottomPad]);
-      topPad.style.height = '0px';
-      bottomPad.style.height = '0px';
-      return;
-    }
-    const scrollTop = scroll.scrollTop;
-    const firstVisible = Math.floor(scrollTop / ROW_HEIGHT);
-    const rowCount = Math.ceil(viewportHeight / ROW_HEIGHT) + OVERSCAN * 2;
-    const start = Math.max(0, firstVisible - OVERSCAN);
-    const end = Math.min(totalRows, start + rowCount);
-    const count = end - start;
-
-    topPad.style.height = `${start * ROW_HEIGHT}px`;
-    bottomPad.style.height = `${(totalRows - end) * ROW_HEIGHT}px`;
-
-    ensurePool(count);
-    // Detach pool nodes beyond count.
-    for (let i = count; i < rowPool.length; i++) {
-      if (rowPool[i].parentNode) rowPool[i].remove();
-    }
-    for (let i = 0; i < count; i++) {
-      const cells = buildRow(start + i);
-      replaceChildren(rowPool[i], cells);
-      if (rowPool[i].parentNode !== scroll) {
-        scroll.insertBefore(rowPool[i], bottomPad);
-      }
-    }
-  }
-
-  function setBytes(b) {
-    console.time('[scry/dbg] miniHex.setBytes');
-    bytes = b;
-    totalRows = b ? Math.ceil(b.byteLength / ROW_BYTES) : 0;
-    titleEl.textContent = b ? `ROM (${b.byteLength.toLocaleString()} bytes)` : 'ROM (empty)';
-    scroll.scrollTop = 0;
-    console.log('[scry/dbg] miniHex totalRows =', totalRows, 'virtualHeightPx =', totalRows * ROW_HEIGHT);
-    render();
-    console.timeEnd('[scry/dbg] miniHex.setBytes');
-  }
-
-  function jumpTo(off) {
-    if (!bytes || off < 0 || off >= bytes.byteLength) return;
-    const row = Math.floor(off / ROW_BYTES);
-    scroll.scrollTop = Math.max(0, row * ROW_HEIGHT - viewportHeight / 2);
-    render();
-  }
-
-  scroll.addEventListener('scroll', render);
-  const ro = new ResizeObserver(() => {
-    viewportHeight = scroll.clientHeight;
-    render();
-  });
-  ro.observe(scroll);
-
-  jumpForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const raw = jumpInput.value.trim().replace(/^0x/i, '');
-    const n = parseInt(raw, 16);
-    if (!Number.isNaN(n)) jumpTo(n);
-  });
-
-  return { host, setBytes, jumpTo };
+function cartMetaText(bytes) {
+  const title = readAsciiZ(bytes, 0xA0, 12) || '(blank)';
+  const code  = readAsciiZ(bytes, 0xAC, 4) || '----';
+  return `"${title}" \u00B7 ${code} \u00B7 ${fmtBytes(bytes.byteLength)}`;
 }
 
 export function createGame() {
-  const host = document.createElement('section');
-  host.className = 's-game';
-
   let gba = null;
   let currentBytes = null;
+  let romLoaded = false;
   let running = false;
-  let romLoaded = false; // setRom has been called on `gba` for currentBytes
+  let follow = false;
+  let pcCursor = null;
+  let livePc = null;
+  let pcMode = 'ARM';
+  let pcTrail = [];
+  let pcRaf = 0;
+  let pcLastTick = 0;
+  let inCart = false;
 
-  // ---- left pane: emulator canvas + controls -----------------------------
-  const canvas = el('canvas', { class: 'game-canvas' });
+  // ── top bar with cart meta ────────────────────────────────────────────
+  const gTitle = el('span', { class: 'g-title', text: '[ GBA / EMULATOR ]' });
+  const gMeta  = el('span', { class: 'g-meta', text: '' });
+  const gBar   = el('div',  { class: 'g-bar' }, [gTitle, gMeta]);
+
+  // ── left: canvas + controls ───────────────────────────────────────────
+  const canvas = el('canvas', { class: 'g-canvas' });
   canvas.width = CANVAS_W;
   canvas.height = CANVAS_H;
   canvas.tabIndex = 0;
 
-  const status   = el('span',   { class: 'game-status', text: 'idle' });
-  const playBtn  = el('button', { class: 'game-btn',    text: 'PLAY'  });
-  const pauseBtn = el('button', { class: 'game-btn',    text: 'PAUSE' });
-  const resetBtn = el('button', { class: 'game-btn',    text: 'RESET' });
+  const playBtn  = el('button', { class: 'g-btn', type: 'button', text: 'PLAY'  });
+  const pauseBtn = el('button', { class: 'g-btn', type: 'button', text: 'PAUSE' });
+  const resetBtn = el('button', { class: 'g-btn', type: 'button', text: 'RESET' });
 
-  const left = el('div', { class: 'game-left' }, [
-    el('div', { class: 'game-bar' }, [
-      el('span', { class: 'game-title', text: '[ GBA / EMULATOR ]' }),
-      el('span', { class: 'game-hint',  text: 'arrows = D-pad \u00B7 Z/X = A/B \u00B7 Enter = Start' }),
-    ]),
-    el('div', { class: 'game-canvas-wrap' }, [canvas]),
-    el('div', { class: 'game-controls' }, [playBtn, pauseBtn, resetBtn, status]),
-  ]);
+  const followLed = el('span', { class: 'g-follow-led' });
+  followLed.setAttribute('aria-hidden', 'true');
+  const followLab = el('span', { class: 'g-follow-lab', text: 'FOLLOW PC' });
+  const followBtn = el('button', { class: 'g-follow', type: 'button' }, [followLed, followLab]);
+  followBtn.title = "Auto-scroll the ROM view to wherever the CPU's program counter currently is";
 
-  // ---- right pane: cart header + lightweight virtualized hex viewer ------
-  const cartHead = el('div', { class: 'game-cart-head-wrap' });
-  const miniHex = createMiniHex();
+  const statusEl = el('span', { class: 'g-status', text: 'cart ready \u00B7 click PLAY' });
+  const hintEl   = el('span', { class: 'g-hint', text: 'arrows = D-pad \u00B7 Z/X = A/B \u00B7 Enter = Start' });
 
-  const right = el('div', { class: 'game-right' }, [
-    el('div', { class: 'game-bar' }, [
-      el('span', { class: 'game-title', text: '[ ROM / INSPECTOR ]' }),
-      el('span', { class: 'game-hint',  text: 'pause \u00B7 scroll \u00B7 jump 0x...' }),
-    ]),
-    cartHead,
-    miniHex.host,
-  ]);
+  const canvasWrap = el('div', { class: 'g-canvas-wrap' }, [canvas]);
+  const controls   = el('div', { class: 'g-controls' }, [playBtn, pauseBtn, resetBtn, followBtn, statusEl, hintEl]);
+  const gLeft      = el('div', { class: 'g-left' }, [canvasWrap, controls]);
 
-  const split = el('div', { class: 'game-split' }, [left, right]);
-  host.appendChild(split);
+  // ── right: PC bar + mini-hex ──────────────────────────────────────────
+  const subTitle = el('span', { class: 'g-sub-title', text: '[ ROM / INSPECTOR ]' });
+  const subHint  = el('span', { class: 'g-sub-hint', text: 'pause \u00B7 scroll \u00B7 jump 0x...' });
+  const subBar   = el('div',  { class: 'g-sub-bar' }, [subTitle, subHint]);
 
-  function setStatus(t) { status.textContent = t; }
+  const trailHost = el('div', { class: 'g-pc-trail' });
+  const miniHex = createMiniHex({ onByteClick: handleMiniHexClick });
+  const gRight  = el('div', { class: 'g-right' }, [subBar, miniHex.host, trailHost]);
 
+  // ── split ─────────────────────────────────────────────────────────────
+  const gSplit = el('div', { class: 'g-split' }, [gLeft, gRight]);
+  const wrap   = el('section', { class: 'g-wrap' }, [gBar, gSplit]);
+
+  // ── state helpers ─────────────────────────────────────────────────────
+  function setStatus(t) {
+    statusEl.textContent = t;
+    refreshButtons();
+  }
+  function refreshButtons() {
+    playBtn.disabled  = !currentBytes || running;
+    pauseBtn.disabled = !running;
+    resetBtn.disabled = !currentBytes || !romLoaded;
+    followBtn.disabled = !romLoaded;
+  }
+  function refreshSubHint() {
+    if (livePc) {
+      replaceChildren(subHint, []);
+      const live = hex8(livePc.address);
+      const off = livePc.inCart && livePc.offset !== null ? ` \u00B7 ROM ${hex8(livePc.offset)}` : '';
+      const mirror = livePc.mirrored ? ' \u00B7 mirror' : '';
+      const main = el('span', { text: `${pcMode} PC\u2192${live} \u00B7 ${livePc.label}${off}${mirror}` });
+      if (!livePc.inCart) main.classList.add('g-pc-dim');
+      subHint.appendChild(main);
+    } else if (running) {
+      subHint.textContent = 'waiting for first PC sample\u2026';
+    } else {
+      subHint.textContent = 'pause \u00B7 scroll \u00B7 jump 0x...';
+    }
+  }
+
+  function publishPc() {
+    publishGamePc({
+      follow,
+      running,
+      liveAddress: livePc?.address ?? null,
+      label: livePc?.label ?? (romLoaded ? 'READY' : 'IDLE'),
+      mode: pcMode,
+      inCart,
+      offset: pcCursor,
+      mirrored: !!livePc?.mirrored,
+      trail: pcTrail.slice(),
+    });
+  }
+
+  function pushTrail(pcInfo) {
+    if (!pcInfo?.inCart || pcInfo.offset === null) return;
+    const last = pcTrail[0];
+    if (last && Math.floor(last.offset / 16) === Math.floor(pcInfo.offset / 16)) return;
+    pcTrail = [{
+      address: pcInfo.address,
+      offset: pcInfo.offset,
+      label: pcInfo.label,
+      mode: pcMode,
+      mirrored: pcInfo.mirrored,
+      ts: performance.now(),
+    }, ...pcTrail].slice(0, PC_TRAIL_MAX);
+    renderTrail();
+  }
+
+  function renderTrail() {
+    if (!pcTrail.length) {
+      trailHost.textContent = 'PC trail: waiting for cart code';
+      return;
+    }
+    const rows = pcTrail.map((p, idx) => {
+      const b = el('button', {
+        class: `g-trail-row${idx === 0 ? ' hot' : ''}`,
+        type: 'button',
+        title: `Jump MiniHex and HEX to ${hex8(p.offset)}`,
+      }, [
+        el('span', { class: 'g-trail-age', text: idx === 0 ? 'NOW' : `-${idx}` }),
+        el('span', { class: 'g-trail-pc', text: hex8(p.address) }),
+        el('span', { class: 'g-trail-off', text: hex8(p.offset) }),
+        el('span', { class: 'g-trail-mode', text: p.mode }),
+      ]);
+      b.addEventListener('click', () => {
+        miniHex.jumpTo(p.offset);
+        gotoIn('hex', p.offset, p.mode === 'THUMB' ? 2 : 4);
+      });
+      return b;
+    });
+    replaceChildren(trailHost, [
+      el('div', { class: 'g-trail-title', text: 'RECENT CART PC' }),
+      ...rows,
+    ]);
+  }
+
+  function handleMiniHexClick(off) {
+    const busAddr = (0x08000000 + off) >>> 0;
+    if (running) {
+      setHint('game', `ROM ${hex8(off)} \u00B7 byte selected while running`);
+      return;
+    }
+    setHint('game', `ROM ${hex8(off)} \u00B7 bus ${hex8(busAddr)} \u00B7 ARM/THUMB disasm is not implemented in v1`);
+  }
+
+  // ── gba lifecycle ─────────────────────────────────────────────────────
   function ensureGba() {
     if (gba) return gba;
-    if (typeof window.GameBoyAdvance !== 'function') {
-      throw new Error('gbajs not loaded');
-    }
-    if (!window.biosBin) {
-      throw new Error('biosBin not loaded');
-    }
+    if (typeof window.GameBoyAdvance !== 'function') throw new Error('gbajs not loaded');
+    if (!window.biosBin) throw new Error('biosBin not loaded');
     gba = new window.GameBoyAdvance();
+    // Force the software renderer. proxy.js's `new Worker('js/video/worker.js')`
+    // 404s under our deployment; the failure fires async so video.js's sync
+    // try/catch never falls back. Result: audio plays, canvas stays black.
+    if (typeof window.GameBoyAdvanceSoftwareRenderer === 'function') {
+      try { gba.video.renderPath?.worker?.terminate?.(); } catch (_) {}
+      gba.video.renderPath = new window.GameBoyAdvanceSoftwareRenderer();
+    }
     gba.keypad.eatInput = true;
     gba.logLevel = gba.LOG_ERROR;
-    gba.setLogger((level, msg) => console.warn('[scry/game/gba]', msg));
+    gba.setLogger((level, msg) => console.warn('[scry/v1/game/gba]', msg));
     gba.setCanvas(canvas);
     gba.setBios(window.biosBin);
     return gba;
   }
 
-  // Boot a cart synchronously inside one frame. gbajs2's setRom does a
-  // sync save-type scan that walks the whole cart, which is the source
-  // of the second-long freeze users see. We don't dress that up with
-  // fake-async progress text anymore — instead we wait for an explicit
-  // PLAY click, paint a "loading…" frame, then let it block. That way
-  // a 16 MiB Pokemon ROM doesn't lock the page just by landing in the
-  // store; the freeze only happens when the user opts in.
-  async function loadCartAndPlay() {
-    if (!currentBytes) return;
-    if (running) return;
-    setStatus('loading ROM\u2026');
-    // Two rAFs: first lets the status paint, second guarantees the
-    // browser has run the paint before we start blocking.
-    await new Promise(r => requestAnimationFrame(r));
-    await new Promise(r => requestAnimationFrame(r));
-    try {
-      const inst = ensureGba();
-      if (!romLoaded) {
+  async function play() {
+    if (!currentBytes || running) return;
+    canvas.focus();
+    if (!romLoaded) {
+      setStatus('loading ROM\u2026');
+      // Two rAFs: first paints "loading", second guarantees the paint
+      // committed before we start blocking on setRom.
+      await new Promise(r => requestAnimationFrame(r));
+      await new Promise(r => requestAnimationFrame(r));
+      try {
+        const inst = ensureGba();
         const rom = currentBytes.buffer.slice(
           currentBytes.byteOffset,
           currentBytes.byteOffset + currentBytes.byteLength
         );
         const ok = inst.setRom(rom);
-        if (!ok) {
-          setStatus('rom rejected');
-          return;
-        }
+        if (!ok) { setStatus('rom rejected'); return; }
         romLoaded = true;
+        inst.runStable();
+        running = true;
+        setStatus('running');
+        startPcPoll();
+      } catch (e) {
+        console.error('[scry/v1/game] load failed', e);
+        setStatus('error: ' + (e?.message || e));
       }
-      canvas.focus();
-      inst.runStable();
-      running = true;
-      setStatus('running');
-    } catch (e) {
-      console.error('[scry/game] load failed', e);
-      setStatus('error: ' + (e?.message || e));
-    }
-  }
-
-  function play() {
-    if (!currentBytes) return;
-    if (running) return;
-    if (!romLoaded) {
-      // First click: pay the load cost.
-      loadCartAndPlay();
       return;
     }
-    canvas.focus();
     gba.runStable();
     running = true;
     setStatus('running');
+    startPcPoll();
   }
 
   function pause() {
@@ -303,54 +236,130 @@ export function createGame() {
     gba.pause();
     running = false;
     setStatus('paused');
+    stopPcPoll();
+    refreshSubHint();
+    publishPc();
   }
 
   function reset() {
     if (!gba || !currentBytes) return;
     const wasRunning = running;
-    pause();
+    if (wasRunning) { try { gba.pause(); } catch (_) {} running = false; }
+    stopPcPoll();
+    pcCursor = null;
+    livePc = null;
+    inCart = false;
     romLoaded = false;
-    if (wasRunning) loadCartAndPlay();
-    else setStatus('cart ready \u00B7 click PLAY');
+    setStatus('cart ready \u00B7 click PLAY');
+    refreshSubHint();
+    miniHex.setCursor(null);
+    publishPc();
+    if (wasRunning) play();
   }
 
+  // ── PC tracker (matches v2) ───────────────────────────────────────────
+  function pollPc(ts) {
+    pcRaf = requestAnimationFrame(pollPc);
+    if (!running || !gba || !currentBytes) return;
+    if (ts - pcLastTick < PC_THROTTLE_MS) return;
+    pcLastTick = ts;
+    const pc = currentGbaPc(gba.cpu);
+    if (pc === null) return;
+    pcMode = currentGbaMode(gba.cpu);
+    livePc = describeGbaAddress(pc, currentBytes.byteLength);
+    if (livePc.inCart && livePc.offset !== null) {
+      pcCursor = livePc.offset;
+      inCart = true;
+      miniHex.setCursor(pcCursor);
+      pushTrail(livePc);
+    } else {
+      inCart = false;
+    }
+    refreshSubHint();
+    publishPc();
+  }
+  function startPcPoll() {
+    if (pcRaf) return;
+    pcLastTick = 0;
+    pcRaf = requestAnimationFrame(pollPc);
+  }
+  function stopPcPoll() {
+    if (pcRaf) cancelAnimationFrame(pcRaf);
+    pcRaf = 0;
+  }
+
+  // ── handlers ──────────────────────────────────────────────────────────
   playBtn.addEventListener('click', play);
   pauseBtn.addEventListener('click', pause);
   resetBtn.addEventListener('click', reset);
+  followBtn.addEventListener('click', () => {
+    follow = !follow;
+    followBtn.classList.toggle('g-follow-on', follow);
+    followLab.textContent = follow ? 'FOLLOWING PC' : 'FOLLOW PC';
+    miniHex.setFollow(follow);
+    publishPc();
+  });
 
-  // React to file changes. We DO NOT auto-load the cart into gbajs —
-  // setRom blocks the main thread for a second+ on a 16 MiB cart while
-  // it scans for save type. Instead we just show the header + hex
-  // viewer and wait for an explicit PLAY click. The user pays the freeze
-  // when they ask for it, with a clear "loading ROM…" status.
+  // ── react to file changes ─────────────────────────────────────────────
   const gameFileSub = (state) => {
     const bytes = state.bytes;
     if (gba && running) pause();
     if (!bytes) {
       currentBytes = null;
       romLoaded = false;
-      replaceChildren(cartHead, []);
+      pcCursor = null;
+      livePc = null;
+      pcTrail = [];
+      inCart = false;
+      follow = false;
+      followBtn.classList.remove('g-follow-on');
+      followLab.textContent = 'FOLLOW PC';
+      gMeta.textContent = '';
       miniHex.setBytes(null);
       setStatus('idle');
+      refreshSubHint();
+      renderTrail();
+      clearHint('game');
+      publishPc();
       return;
     }
     if (bytes.byteLength < 0xC0 || bytes[0xB2] !== 0x96) {
       currentBytes = null;
       romLoaded = false;
-      replaceChildren(cartHead, []);
+      pcCursor = null;
+      livePc = null;
+      pcTrail = [];
+      gMeta.textContent = '';
       miniHex.setBytes(null);
       setStatus('not a GBA cart');
+      refreshSubHint();
+      renderTrail();
+      publishPc();
       return;
     }
     currentBytes = bytes;
     romLoaded = false;
-    replaceChildren(cartHead, [buildCartHead(bytes)]);
+    pcCursor = null;
+    livePc = null;
+    pcTrail = [];
+    inCart = false;
+    gMeta.textContent = cartMetaText(bytes);
     miniHex.setBytes(bytes);
-    miniHex.jumpTo(0xA0); // land on the cartridge header
+    miniHex.jumpTo(0xA0);
     setStatus('cart ready \u00B7 click PLAY');
+    refreshSubHint();
+    renderTrail();
+    publishPc();
   };
   gameFileSub.__dbg = 'game.fileSub';
   fileStore.subscribe(gameFileSub);
 
-  return host;
+  // Auto-pause whenever the user navigates away from the GAME tab. gbajs2
+  // runs on rAF; leaving it active while HEX/INSPECT/etc. try to mount steals
+  // the main thread and the user thinks those tabs hung.
+  const gameRouteSub = (route) => { if (route !== 'game' && running) pause(); };
+  gameRouteSub.__dbg = 'game.routeSub';
+  router.subscribe(gameRouteSub);
+
+  return wrap;
 }

@@ -90,6 +90,10 @@
         if (cancelled) return;
         await Promise.all(list.map(async (s) => {
           if (!SAMPLE_NAME_OK.test(s.file)) return;
+          if (s.file.endsWith('.gba')) {
+            sampleSparks = { ...sampleSparks, [s.file]: Array(12).fill(0.22) };
+            return;
+          }
           try {
             const r = await fetch(`../v1/samples/${encodeURIComponent(s.file)}`);
             if (!r.ok) return;

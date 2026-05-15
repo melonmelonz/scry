@@ -160,6 +160,51 @@
     .row-line .v1, .row-line .v2 { border-left: 0; border-top: 1px solid var(--grey); }
   }
 
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+  @media (max-width: 760px) { .stats-grid { grid-template-columns: 1fr; } }
+  .stats-card {
+    border: 1px solid var(--grey);
+    background: var(--paper);
+    border-radius: 4px;
+    padding: 16px 18px;
+  }
+  .stats-k {
+    font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 4px;
+  }
+  .stats-v { font-size: 22px; line-height: 1.2; color: var(--ink); }
+  .stats-v em { font-style: normal; color: var(--mint-deep); }
+  .stats-note { margin-top: 6px; font-size: 10px; color: var(--ink-dim); }
+  .meter-list {
+    margin-top: 18px;
+    border: 1px solid var(--grey);
+    background: var(--paper);
+    border-radius: 4px;
+    padding: 14px 18px;
+  }
+  .meter-row {
+    display: grid;
+    grid-template-columns: 150px 1fr 70px;
+    gap: 12px;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px dotted var(--grey);
+  }
+  .meter-row:last-child { border-bottom: 0; }
+  .meter-label { font-size: 10px; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+  .meter-track { height: 9px; background: var(--bg); border: 1px solid var(--rule); position: relative; }
+  .meter-fill { position: absolute; inset: 0 auto 0 0; background: var(--mint-deep); }
+  .meter-fill.v2 { background: var(--ink-dim); }
+  .meter-val { font-size: 10px; color: var(--ink-dim); text-align: right; }
+  @media (max-width: 760px) {
+    .meter-row { grid-template-columns: 1fr; gap: 4px; }
+    .meter-val { text-align: left; }
+  }
+
   .callout {
     margin-top: 18px;
     padding: 16px 22px;
@@ -297,6 +342,77 @@
 <section>
   <div class="sec-head">
     <span class="sec-num">03</span>
+    <span class="sec-title">Build stats</span>
+    <span class="sec-tag">CURRENT TREE</span>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stats-card">
+      <div class="stats-k">V1 pure source</div>
+      <div class="stats-v"><em>51</em> files</div>
+      <div class="stats-note">JS + CSS only; no Svelte, no wasm, no Rust runtime.</div>
+    </div>
+    <div class="stats-card">
+      <div class="stats-k">V2 app/core source</div>
+      <div class="stats-v"><em>18</em> files</div>
+      <div class="stats-note">Svelte/JS plus <code>rust/scry-core</code>; generated wasm glue excluded from authoring count where noted.</div>
+    </div>
+    <div class="stats-card">
+      <div class="stats-k">V1 source LOC</div>
+      <div class="stats-v"><em>6.8K</em> lines</div>
+      <div class="stats-note">Includes parsers, RV32 disasm/emu, trace, wave, hex, GBA game UI.</div>
+    </div>
+    <div class="stats-card">
+      <div class="stats-k">V2 source LOC</div>
+      <div class="stats-v"><em>4.4K</em> lines</div>
+      <div class="stats-note">Includes Svelte panes, Rust core, and the generated wasm JS shim.</div>
+    </div>
+  </div>
+
+  <div class="meter-list" aria-label="V1 and V2 implementation comparison meters">
+    <div class="meter-row">
+      <div class="meter-label">Source LOC</div>
+      <div class="meter-track"><span class="meter-fill" style="width:100%"></span></div>
+      <div class="meter-val">V1 6,841</div>
+    </div>
+    <div class="meter-row">
+      <div class="meter-label">Source LOC</div>
+      <div class="meter-track"><span class="meter-fill v2" style="width:64%"></span></div>
+      <div class="meter-val">V2 4,377</div>
+    </div>
+    <div class="meter-row">
+      <div class="meter-label">Source bytes</div>
+      <div class="meter-track"><span class="meter-fill" style="width:100%"></span></div>
+      <div class="meter-val">V1 232 KB</div>
+    </div>
+    <div class="meter-row">
+      <div class="meter-label">Source bytes</div>
+      <div class="meter-track"><span class="meter-fill v2" style="width:63%"></span></div>
+      <div class="meter-val">V2 146 KB</div>
+    </div>
+    <div class="meter-row">
+      <div class="meter-label">WASM artifact</div>
+      <div class="meter-track"><span class="meter-fill" style="width:0%"></span></div>
+      <div class="meter-val">V1 0 KB</div>
+    </div>
+    <div class="meter-row">
+      <div class="meter-label">WASM artifact</div>
+      <div class="meter-track"><span class="meter-fill v2" style="width:100%"></span></div>
+      <div class="meter-val">V2 103 KB</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Read the graph as shape, not scoreboard.</strong> V1 carries more hand-written behavior
+    because it owns RV32 disasm/emu and the pure-JS demo path. V2 is smaller at the authored surface,
+    but it leans on Rust crates, wasm-bindgen glue, and a bundler.
+  </div>
+</section>
+
+<!-- 04 -->
+<section>
+  <div class="sec-head">
+    <span class="sec-num">04</span>
     <span class="sec-title">Pane-by-pane status</span>
     <span class="sec-tag">WHAT WORKS, WHERE</span>
   </div>
@@ -309,8 +425,8 @@
     </div>
     <div class="row-line">
       <div class="label">HEX</div>
-      <div class="v1"><b>V1:</b> virtualized; 64 MiB cap; click-to-overlay.</div>
-      <div class="v2"><b>V2:</b> same UX, entropy strip driven by <code>scry-core::entropy_blocks</code>.</div>
+      <div class="v1"><b>V1:</b> virtualized; entropy strip; byte select; ELF/GBA field overlays.</div>
+      <div class="v2"><b>V2:</b> byte select + overlays too; entropy strip driven by <code>scry-core::entropy_blocks</code>.</div>
     </div>
     <div class="row-line">
       <div class="label">WAVE (audio)</div>
@@ -329,16 +445,16 @@
     </div>
     <div class="row-line">
       <div class="label">GAME (GBA)</div>
-      <div class="v1"><b>V1:</b> vendored <code>gbajs</code> renders to a canvas &mdash; cart actually runs.</div>
-      <div class="v2"><b>V2:</b> CART pane &mdash; Rust verifies the header checksum.</div>
+      <div class="v1"><b>V1:</b> vendored <code>gbajs</code>; live PC region, ROM trail, MiniHex follow.</div>
+      <div class="v2"><b>V2:</b> same playable GAME surface plus Rust CART checksum verification.</div>
     </div>
   </div>
 </section>
 
-<!-- 04 -->
+<!-- 05 -->
 <section>
   <div class="sec-head">
-    <span class="sec-num">04</span>
+    <span class="sec-num">05</span>
     <span class="sec-title">Trade-offs, honestly</span>
     <span class="sec-tag">WHY BOTH</span>
   </div>
@@ -375,10 +491,10 @@
   </div>
 </section>
 
-<!-- 05 -->
+<!-- 06 -->
 <section>
   <div class="sec-head">
-    <span class="sec-num">05</span>
+    <span class="sec-num">06</span>
     <span class="sec-title">Sources &middot; licenses &middot; provenance</span>
     <span class="sec-tag">CREDITS</span>
   </div>

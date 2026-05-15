@@ -18,6 +18,11 @@ export class Store {
   }
 
   set(value) {
+    // Skip notification when the reference hasn't changed. Most callers
+    // pass a freshly-spread object so this is a cheap dedupe; it stops
+    // router.go(currentRoute) from re-firing every subscriber, and stops
+    // the hashchange-then-store-set double-fire inside router.go.
+    if (value === this.#value) return;
     this.#value = value;
     this.#notify();
   }

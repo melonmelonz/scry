@@ -9,7 +9,10 @@ import { router } from '../stores/router.js';
 // MMIO writes) and decodes it as SPI / I²C transactions. No external file
 // input in v1; the demo loop is firmware -> MMIO -> trace decoders.
 
-function fmtBytes(bytes) {
+// Formats an array of byte values as space-separated hex pairs (different
+// from fmt.js#fmtBytes which formats a byte *size* — keep the local name
+// distinct so the two don't get confused).
+function fmtByteArr(bytes) {
   if (!bytes.length) return '(empty)';
   return bytes.map(b => b.toString(16).padStart(2, '0')).join(' ');
 }
@@ -114,9 +117,9 @@ export function createTrace() {
         el('span', { class: 't-idx', text: String(i).padStart(3, '0') }),
         el('span', { class: 't-cyc', text: `c${t.start_cycle}\u2192c${t.end_cycle}` }),
         el('span', { class: 't-dir', text: 'MOSI' }),
-        el('span', { class: 't-data', text: fmtBytes(t.mosi) }),
+        el('span', { class: 't-data', text: fmtByteArr(t.mosi) }),
         el('span', { class: 't-dir', text: 'MISO' }),
-        el('span', { class: 't-data muted', text: fmtBytes(t.miso) })
+        el('span', { class: 't-data muted', text: fmtByteArr(t.miso) })
       ]);
       row.addEventListener('click', () => showSpiDetail(t, i));
       spiList.appendChild(row);
@@ -140,7 +143,7 @@ export function createTrace() {
         el('span', { class: 't-cyc', text: `c${t.start_cycle}\u2192c${t.end_cycle}` }),
         el('span', { class: 't-dir', text: dir + (t.restart ? ' (Sr)' : '') }),
         el('span', { class: 't-addr', text: addr }),
-        el('span', { class: 't-data', text: fmtBytes(t.bytes) })
+        el('span', { class: 't-data', text: fmtByteArr(t.bytes) })
       ]);
       row.addEventListener('click', () => showI2cDetail(t, i));
       i2cList.appendChild(row);

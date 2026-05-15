@@ -3,6 +3,7 @@
   grid-template-rows: auto auto 1fr auto;
   height: 100%;
   padding: 0 22px 22px;
+  min-height: 0;
 }
 .hex-bar {
   display: flex;
@@ -55,7 +56,6 @@
   position: absolute;
   inset: 0;
   display: grid;
-  /* 64 columns; the 1px gutter is created by column-gap. */
   grid-template-columns: repeat(64, 1fr);
   column-gap: 1px;
   padding: 3px 4px;
@@ -80,7 +80,6 @@
   width: 100%;
   min-height: 1px;
   background: var(--ink);
-  /* Subtle fade-in when first built. */
   transition: height var(--t-base);
 }
 .hex-entropy-marker {
@@ -95,19 +94,27 @@
   opacity: 0;
 }
 
+/* ─── Scroll container + rows ──────────────────── */
 .hex-scroll {
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
   position: relative;
+  background: var(--paper);
+  border: 1px solid var(--rule);
 }
+.hex-scroll:focus { outline: 2px solid var(--mint-deep); outline-offset: -2px; }
 
+/* Rows are absolutely positioned inside a sizer (set by hex.js) so the
+   physical-height cap can hold for huge files. The grid template lays out
+   the address / hex / ascii columns. */
 .hex-row {
   display: grid;
   grid-template-columns: 100px 1fr 170px;
   gap: 22px;
-  padding: 0;
+  padding: 0 12px;
   align-items: center;
+  font-family: var(--mono);
   font-size: 11px;
   line-height: 20px;
   height: 20px;
@@ -134,9 +141,6 @@
 }
 
 /* ─── Jump flash (cross-pane choreography) ────── */
-/* Rows and cells start at the tint then fade to transparent. The `flash`
-   class is added by hex.js after scroll lands; a forced reflow restarts the
-   transition each call so repeated jumps still pulse. */
 .hex-row.flash {
   background: var(--tint-drop);
   transition: background 400ms ease;
@@ -151,7 +155,8 @@
   animation: hex-cell-flash 400ms ease forwards;
 }
 
-/* Overlay tip */
+/* ─── Overlay tip (per-format field detail on hover) ─── */
+.tip-host { padding: 0; }
 .tip {
   background: var(--mint-pale);
   border-left: 2px solid var(--mint-deep);

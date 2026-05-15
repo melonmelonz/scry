@@ -1,15 +1,10 @@
 import { fileStore } from '../stores/file.js';
-import { detectFormat, formatLabel } from '../format/detect.js';
+import { formatLabel } from '../format/detect.js';
 import { parseElf, E_MACHINE } from '../elf/parse.js';
 import { parseWav } from '../format/wav.js';
 import { entropyMean } from '../hex/entropy.js';
 import { el, replaceChildren } from '../dom.js';
-
-function sizeFmt(n) {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KiB`;
-  return `${(n / (1024 * 1024)).toFixed(2)} MiB`;
-}
+import { fmtBytes } from '../fmt.js';
 
 function railRow(label, value) {
   return el('div', { class: 'row' }, [
@@ -78,11 +73,11 @@ export function createFileRail() {
       return;
     }
     if (state.bytes) {
-      const kind = detectFormat(state.bytes);
+      const kind = state.kind;
       const summary = el('div', { class: 's-rail-summary', text: summaryLine(state.bytes, kind) });
       replaceChildren(host, [
         railRow('File', state.name),
-        railRow('Size', sizeFmt(state.bytes.byteLength)),
+        railRow('Size', fmtBytes(state.bytes.byteLength)),
         railRow('Format', formatLabel(kind)),
         summary
       ]);

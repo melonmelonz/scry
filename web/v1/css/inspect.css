@@ -1,145 +1,97 @@
-.i-wrap {
-  display: grid;
-  grid-template-rows: auto auto 1fr;
-  height: 100%;
-  padding: 0 22px 22px;
+/* Verbatim port of v2 Inspect.svelte's <style> block. Keep the class names
+   in sync with web/v2/src/lib/Inspect.svelte. v1 strips Svelte's :global()
+   wrappers (we have no compile step) but otherwise the rules are 1:1. */
+
+.wrap { display: flex; flex-direction: column; min-height: 0; gap: 10px; flex: 1; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab {
+  font-family: inherit;
+  background: var(--paper);
+  color: var(--muted);
+  border: 1px solid var(--rule);
+  padding: 4px 10px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.tab.active { color: var(--mint-deep); border-color: var(--mint-deep); }
+.tab .ct { color: var(--muted); margin-left: 6px; letter-spacing: 0.06em; }
+.tab.active .ct { color: var(--mint-deep); }
+.panel {
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  padding: 14px;
+  overflow: auto;
   min-height: 0;
+  flex: 1;
+}
+.kv {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 6px 18px;
+  font-size: 11px;
+}
+.kv dt {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.kv dd.addr { color: var(--mint-deep); }
+table { width: 100%; border-collapse: collapse; font-size: 10px; }
+th, td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px dotted var(--grey);
+  white-space: nowrap;
+}
+th {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--mint-deep);
+  text-transform: uppercase;
+}
+td.name { color: var(--ink); }
+td.addr { color: var(--mint-deep); font-variant-numeric: tabular-nums; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr:hover { background: var(--mint-pale); }
+tr.clickable { cursor: pointer; }
+
+.bar-h { width: 90px; color: var(--rule) !important; }
+td.bar { width: 90px; padding-right: 0; }
+.bar-fill {
+  display: inline-block;
+  height: 6px;
+  background: var(--mint-deep);
+  vertical-align: middle;
+  border-radius: 1px;
+  transition: width var(--t-base);
 }
 
-.i-bar {
+.strings-bar {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  padding: 16px 0 12px;
-  border-bottom: 1px solid var(--grey);
+  margin-bottom: 10px;
+  gap: 12px;
 }
-.i-title {
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.i-subtabs { display: flex; gap: 2px; }
-.i-subtabs button {
+.strings-q {
+  flex: 1;
   font-family: inherit;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-  padding: 4px 10px;
-  border: 1px solid transparent;
-  transition: color var(--t-fast), border-color var(--t-fast);
-}
-.i-subtabs button:hover { color: var(--ink); }
-.i-subtabs button.on {
-  color: var(--mint-deep);
-  border-color: var(--mint-deep);
-  background: var(--paper);
-}
-
-.i-summary-host { padding: 16px 0 4px; }
-.i-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 10px 22px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--grey);
-}
-.sum-row { display: flex; flex-direction: column; gap: 2px; }
-.sum-row .l {
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.sum-row .v {
   font-size: 11px;
+  background: var(--bg);
   color: var(--ink);
+  border: 1px solid var(--rule);
+  padding: 4px 8px;
+  letter-spacing: 0.04em;
 }
-
-.i-body {
-  overflow: auto;
-  min-height: 0;
-  padding-top: 12px;
-}
-.i-empty {
-  font-size: 11px;
-  color: var(--muted);
-  padding: 32px 0;
-  text-align: center;
-}
-.i-note {
-  font-size: 10px;
-  color: var(--muted);
-  padding: 8px 12px;
-  font-style: italic;
-}
-
-.i-table {
-  font-size: 11px;
-  line-height: 22px;
-}
-.i-table.sect .c-name { color: var(--mint-deep); }
-
-.i-row {
-  display: grid;
-  grid-template-columns: 32px 1.8fr 0.9fr 1.1fr 1.1fr 0.9fr 0.6fr;
-  gap: 14px;
-  padding: 0 6px;
-  align-items: center;
-  height: 22px;
-  white-space: nowrap;
-  overflow: hidden;
-}
-/* Sections table gets an extra 100px sparkline column. Override the base
-   grid so the bar cell lives outside the fr-distribution. */
-.i-table.sect .i-row {
-  grid-template-columns: 32px 1.8fr 0.9fr 1.1fr 1.1fr 0.9fr 0.6fr 100px;
-}
-.i-row .c-spark {
-  display: inline-flex;
-  align-items: center;
-  height: 100%;
-}
-.i-spark-track {
-  display: inline-block;
-  width: 80px;
-  height: 2px;
-  background: var(--tint-rail);
-  border-radius: 1px;
-  overflow: hidden;
-}
-.i-spark-fill {
-  display: block;
-  height: 100%;
-  background: var(--mint-deep);
-  transition: width var(--t-base);
-}
-.i-row .c {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.i-row .mono { letter-spacing: 0.02em; }
-.i-row .muted { color: var(--muted); }
-.i-row.i-head {
+.strings-q:focus { outline: none; border-color: var(--mint-deep); }
+.strings-ct {
   font-size: 9px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  letter-spacing: 0.12em;
   color: var(--muted);
-  border-bottom: 1px solid var(--grey);
-  height: 26px;
-  margin-bottom: 4px;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
-.i-row:not(.i-head):hover {
-  background: var(--mint-pale);
-}
-.i-row.clickable { cursor: pointer; }
-.i-row.clickable:hover .c-name {
-  color: var(--mint-deep);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.i-row:not(.i-head):nth-child(even):not(:hover) {
-  background: var(--tint-row);
-}
+.strings-tbl td.str { white-space: pre; color: var(--ink); font-family: var(--mono); }

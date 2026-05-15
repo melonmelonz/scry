@@ -1,5 +1,17 @@
+// INSPECT pane — DOM-mirror of v2's Inspect.svelte (lib/Inspect.svelte) so the
+// parent shell's V1/V2 toggle shows the same surface from both engines. All
+// class names mirror v2's exactly (.wrap / .tabs / .tab / .panel / .kv /
+// .strings-bar / etc.) and css/inspect.css is a verbatim port of v2's <style>.
+//
+// v2 receives `{ report, strings, onJumpToOffset }` as props from App.svelte;
+// v1 still builds the ELF report itself by calling parseElf(bytes) below. The
+// onJumpToOffset prop is replaced by an inline router.go('hex') + gotoIn call.
+//
+// v1 has no extractStrings equivalent (the v2 version lives in scry-core WASM
+// and there's no JS port in web/v1/js/format/), so the STRINGS tab is omitted
+// entirely rather than rendered empty.
+
 import { fileStore } from '../stores/file.js';
-import { detectFormat } from '../format/detect.js';
 import {
   parseElf,
   E_TYPE, E_MACHINE, SH_TYPE, P_TYPE,
@@ -11,236 +23,282 @@ import { el, replaceChildren } from '../dom.js';
 import { gotoIn } from '../stores/nav.js';
 import { router } from '../stores/router.js';
 
-const TABS = ['sections', 'segments', 'symbols'];
+// Max bar width for the sections-size mini-histogram (px). Matches v2.
+const BAR_MAX = 80;
 
-function summaryRow(label, value) {
-  return el('div', { class: 'sum-row' }, [
-    el('span', { class: 'l', text: label }),
-    el('span', { class: 'v', text: value })
-  ]);
-}
+// Tabs from v2. The 'strings' tab is omitted in v1 (see header comment).
+const TABS = [
+  ['summary',  'SUMMARY'],
+  ['sections', 'SECTIONS'],
+  ['segments', 'SEGMENTS'],
+  ['symbols',  'SYMBOLS']
+];
 
-function tableHeader(cols) {
-  return el('div', { class: 'i-row i-head' }, cols.map(c =>
-    el('span', { class: `c c-${c.key}`, text: c.label })
-  ));
-}
-
-function tableRow(cols, datum, idx, opts = {}) {
-  const cls = `i-row${opts.clickable ? ' clickable' : ''}`;
-  const node = el('div', {
-    class: cls,
-    dataset: { idx: String(idx) },
-    title: opts.title || ''
-  }, cols.map(c => {
-    const v = c.get(datum);
-    const cellClass = `c c-${c.key}${c.mono ? ' mono' : ''}${c.muted ? ' muted' : ''}`;
-    return el('span', { class: cellClass, text: v });
+// Reshape v1's raw ELF parse into the same field names v2's <Inspect> expects
+// from its `report` prop. Keeping the mapping centralized here means the
+// render functions can read like the Svelte template (`s.name`, `s.addr`,
+// `s.kind`, …) without sprinkling format helpers across the DOM-building code.
+function buildReport(elf) {
+  const addrW = elf.is64 ? 16 : 8;
+  const sections = elf.sections.map((s, i) => ({
+    idx: i,
+    name: s.name || '',
+    kind: SH_TYPE[s.sh_type] ?? hex(s.sh_type, 4),
+    addr: hex(s.sh_addr, addrW),
+    offset: hex(s.sh_offset, 8),
+    size: num(s.sh_size),
+    flags: sectionFlagsLabel(s.sh_flags) || '—',
+    // Hold onto the raw numbers so the click handler doesn't have to re-parse
+    // the formatted hex strings on every jump.
+    _offsetRaw: Number(s.sh_offset) >>> 0,
+    _sizeRaw: Number(s.sh_size) || 0,
+    _type: s.sh_type
   }));
-  if (opts.onclick) node.addEventListener('click', opts.onclick);
-  return node;
+  const segments = elf.segments.map((p, i) => ({
+    idx: i,
+    kind: P_TYPE[p.p_type] ?? hex(p.p_type, 8),
+    vaddr: hex(p.p_vaddr, addrW),
+    offset: hex(p.p_offset, 8),
+    filesz: num(p.p_filesz),
+    memsz: num(p.p_memsz),
+    flags: segmentFlagsLabel(p.p_flags) || '—',
+    _offsetRaw: Number(p.p_offset) >>> 0,
+    _fileszRaw: Number(p.p_filesz) || 0
+  }));
+  const symbols = elf.symbols
+    .filter(s => s.name && s.name.length > 0)
+    .slice(0, 2000)
+    .map(s => ({
+      name: s.name,
+      bind: ST_BIND[s.bind] ?? String(s.bind),
+      kind: ST_TYPE[s.type] ?? String(s.type),
+      value: hex(s.st_value, addrW),
+      size: num(s.st_size),
+      _valueRaw: Number(s.st_value) >>> 0,
+      _type: s.type
+    }));
+  const summary = {
+    class: elf.is64 ? 'ELF64' : 'ELF32',
+    data: elf.le ? '2LSB' : '2MSB',
+    osabi: 'SYSV',
+    kind: E_TYPE[elf.header.e_type] ?? hex(elf.header.e_type, 4),
+    machine: E_MACHINE[elf.header.e_machine] ?? hex(elf.header.e_machine, 4),
+    entry: hex(elf.header.e_entry, addrW),
+    n_sections: elf.sections.length,
+    n_segments: elf.segments.length,
+    n_symbols: elf.symbols.length
+  };
+  return { summary, sections, segments, symbols };
 }
 
-function renderSummary(elf) {
-  const cls = elf.is64 ? '64-bit' : '32-bit';
-  const data = elf.le ? 'little-endian' : 'big-endian';
-  const type = E_TYPE[elf.header.e_type] ?? `0x${elf.header.e_type.toString(16)}`;
-  const mach = E_MACHINE[elf.header.e_machine] ?? `0x${elf.header.e_machine.toString(16)}`;
-  const entry = hex(elf.header.e_entry, elf.is64 ? 16 : 8);
+// Jump to an offset in the HEX pane. Keeps v1's existing cross-pane behavior
+// (router.go + gotoIn) — v2's onJumpToOffset is wired by its parent and there's
+// no equivalent shape at the v1 module boundary.
+function jumpToOffset(offset, len) {
+  router.go('hex');
+  gotoIn('hex', offset >>> 0, typeof len === 'number' && len > 0 ? len : 1);
+}
 
-  return el('div', { class: 'i-summary' }, [
-    summaryRow('Class', `${cls} · ${data}`),
-    summaryRow('Type', type),
-    summaryRow('Machine', mach),
-    summaryRow('Entry', entry),
-    summaryRow('Sections', String(elf.sections.length)),
-    summaryRow('Segments', String(elf.segments.length)),
-    summaryRow('Symbols', String(elf.symbols.length))
+function jumpToAddr(addr) {
+  router.go('disasm');
+  gotoIn('disasm', addr >>> 0);
+}
+
+function renderSummary(report) {
+  const dl = el('dl', { class: 'kv' }, [
+    el('dt', { text: 'CLASS' }),    el('dd', { text: report.summary.class }),
+    el('dt', { text: 'DATA' }),     el('dd', { text: report.summary.data }),
+    el('dt', { text: 'OS/ABI' }),   el('dd', { text: report.summary.osabi }),
+    el('dt', { text: 'TYPE' }),     el('dd', { text: report.summary.kind }),
+    el('dt', { text: 'MACHINE' }),  el('dd', { text: report.summary.machine }),
+    el('dt', { text: 'ENTRY' }),    el('dd', { class: 'addr', text: report.summary.entry }),
+    el('dt', { text: 'SECTIONS' }), el('dd', { text: String(report.summary.n_sections) }),
+    el('dt', { text: 'SEGMENTS' }), el('dd', { text: String(report.summary.n_segments) }),
+    el('dt', { text: 'SYMBOLS' }),  el('dd', { text: String(report.summary.n_symbols) })
   ]);
+  return dl;
 }
 
-function renderSections(elf) {
-  // Largest size drives the bar scale. Treat BigInts as numbers (small ELFs
-  // never approach 2^53; clamp to 1 so empty/no-bits sections don't NaN).
-  const maxSize = Math.max(1, ...elf.sections.map(s => Number(s.sh_size) || 0));
-  const cols = [
-    { key: 'idx',    label: '#',       get: (_, i) => i, mono: true, muted: true },
-    { key: 'name',   label: 'NAME',    get: s => s.name || '(unnamed)' },
-    { key: 'type',   label: 'TYPE',    get: s => SH_TYPE[s.sh_type] ?? hex(s.sh_type, 4), muted: true },
-    { key: 'addr',   label: 'ADDR',    get: s => hex(s.sh_addr, elf.is64 ? 16 : 8), mono: true },
-    { key: 'offset', label: 'OFFSET',  get: s => hex(s.sh_offset, 8), mono: true, muted: true },
-    { key: 'size',   label: 'SIZE',    get: s => num(s.sh_size), mono: true },
-    { key: 'flags',  label: 'FLAGS',   get: s => sectionFlagsLabel(s.sh_flags) || '—', mono: true }
-  ];
-  const rows = elf.sections.map((s, i) => {
-    const offset = Number(s.sh_offset) >>> 0;
-    const size = Number(s.sh_size) || 0;
-    const jumpable = size > 0 && s.sh_type !== 0 && s.sh_type !== 8; // skip NULL + NOBITS
-    const node = tableRow(
-      cols.map(c => ({ ...c, get: c.key === 'idx' ? (() => String(i).padStart(2, '0')) : c.get })),
-      s, i,
-      jumpable ? {
-        clickable: true,
-        title: `Jump to offset 0x${offset.toString(16).toUpperCase()} in HEX`,
-        onclick: () => {
-          router.go('hex');
-          gotoIn('hex', offset, size);
-        }
-      } : {}
-    );
-    // Append a sparkline cell so the table reads at-a-glance which sections
-    // dominate the binary by size. Mint-deep fill on a tint-rail track.
-    const ratio = Math.max(0, Math.min(1, size / maxSize));
-    const fillWidth = Math.max(size > 0 ? 1 : 0, Math.round(ratio * 80));
-    const fill = el('span', { class: 'i-spark-fill' });
+function renderSections(report) {
+  const maxSize = Math.max(1, ...report.sections.map(s => Number(s._sizeRaw) || 0));
+  const headRow = el('tr', {}, [
+    el('th', { text: '#' }),
+    el('th', { text: 'NAME' }),
+    el('th', { text: 'KIND' }),
+    el('th', { text: 'ADDR' }),
+    el('th', { text: 'OFF' }),
+    el('th', { text: 'SIZE' }),
+    el('th', { text: 'FLAGS' }),
+    el('th', { class: 'bar-h', text: '─' })
+  ]);
+  const tbody = el('tbody', {}, report.sections.map(s => {
+    const fillWidth = Math.max(1, (Number(s._sizeRaw) / maxSize) * BAR_MAX);
+    const fill = el('span', { class: 'bar-fill' });
     fill.style.width = `${fillWidth}px`;
-    const spark = el('span', { class: 'c c-spark' }, [
-      el('span', { class: 'i-spark-track' }, [fill])
+    // v1 keeps the existing "skip NULL + NOBITS" guard from the previous
+    // implementation; v2 always emits a click. The hover affordance still
+    // matches v2 because we mark the row clickable either way.
+    const jumpable = s._sizeRaw > 0 && s._type !== 0 && s._type !== 8;
+    const row = el('tr', {
+      class: 'clickable',
+      title: `Jump to offset ${s.offset} in HEX`
+    }, [
+      el('td', { text: String(s.idx) }),
+      el('td', { class: 'name', text: s.name || '—' }),
+      el('td', { text: s.kind }),
+      el('td', { class: 'addr', text: s.addr }),
+      el('td', { class: 'addr', text: s.offset }),
+      el('td', { class: 'num', text: s.size }),
+      el('td', { text: s.flags }),
+      el('td', { class: 'bar' }, [fill])
     ]);
-    node.appendChild(spark);
-    return node;
-  });
-  // Header gets a matching empty cell so the grid columns line up.
-  const head = tableHeader(cols);
-  head.appendChild(el('span', { class: 'c c-spark' }));
-  return el('div', { class: 'i-table sect' }, [
-    head,
-    ...rows
-  ]);
+    if (jumpable) {
+      row.addEventListener('click', () => jumpToOffset(s._offsetRaw, s._sizeRaw));
+    }
+    return row;
+  }));
+  return el('table', {}, [el('thead', {}, [headRow]), tbody]);
 }
 
-function renderSegments(elf) {
-  const cols = [
-    { key: 'idx',    label: '#',       get: (_, i) => i, mono: true, muted: true },
-    { key: 'type',   label: 'TYPE',    get: p => P_TYPE[p.p_type] ?? hex(p.p_type, 8) },
-    { key: 'addr',   label: 'VADDR',   get: p => hex(p.p_vaddr, elf.is64 ? 16 : 8), mono: true },
-    { key: 'offset', label: 'OFFSET',  get: p => hex(p.p_offset, 8), mono: true, muted: true },
-    { key: 'filesz', label: 'FILESZ',  get: p => num(p.p_filesz), mono: true },
-    { key: 'memsz',  label: 'MEMSZ',   get: p => num(p.p_memsz), mono: true },
-    { key: 'flags',  label: 'FLAGS',   get: p => segmentFlagsLabel(p.p_flags) || '—', mono: true }
-  ];
-  const rows = elf.segments.map((p, i) => tableRow(
-    cols.map(c => ({ ...c, get: c.key === 'idx' ? (() => String(i).padStart(2, '0')) : c.get })),
-    p, i
-  ));
-  return el('div', { class: 'i-table' }, [
-    tableHeader(cols),
-    ...rows
+function renderSegments(report) {
+  const headRow = el('tr', {}, [
+    el('th', { text: '#' }),
+    el('th', { text: 'KIND' }),
+    el('th', { text: 'VADDR' }),
+    el('th', { text: 'OFF' }),
+    el('th', { text: 'FILESZ' }),
+    el('th', { text: 'MEMSZ' }),
+    el('th', { text: 'FLAGS' })
   ]);
+  const tbody = el('tbody', {}, report.segments.map(s => {
+    const row = el('tr', {
+      class: 'clickable',
+      title: `Jump to offset ${s.offset} in HEX`
+    }, [
+      el('td', { text: String(s.idx) }),
+      el('td', { text: s.kind }),
+      el('td', { class: 'addr', text: s.vaddr }),
+      el('td', { class: 'addr', text: s.offset }),
+      el('td', { class: 'num', text: s.filesz }),
+      el('td', { class: 'num', text: s.memsz }),
+      el('td', { text: s.flags })
+    ]);
+    row.addEventListener('click', () => jumpToOffset(s._offsetRaw, s._fileszRaw));
+    return row;
+  }));
+  return el('table', {}, [el('thead', {}, [headRow]), tbody]);
 }
 
-function renderSymbols(elf) {
-  // Only show defined symbols with a name. The default st_shndx === 0
-  // entry is the SHN_UNDEF placeholder.
-  const filtered = elf.symbols.filter(s => s.name && s.name.length > 0);
-  const cols = [
-    { key: 'idx',    label: '#',     get: (_, i) => i, mono: true, muted: true },
-    { key: 'name',   label: 'NAME',  get: s => s.name },
-    { key: 'bind',   label: 'BIND',  get: s => ST_BIND[s.bind] ?? String(s.bind), muted: true },
-    { key: 'type',   label: 'TYPE',  get: s => ST_TYPE[s.type] ?? String(s.type), muted: true },
-    { key: 'value',  label: 'VALUE', get: s => hex(s.st_value, elf.is64 ? 16 : 8), mono: true },
-    { key: 'size',   label: 'SIZE',  get: s => num(s.st_size), mono: true }
-  ];
-  const rows = filtered.slice(0, 2000).map((s, i) => {
-    const addr = Number(s.st_value) >>> 0;
-    const jumpable = addr !== 0 && (s.type === 2 || s.type === 0); // FUNC or NOTYPE w/ addr
-    return tableRow(
-      cols.map(c => ({ ...c, get: c.key === 'idx' ? (() => String(i).padStart(4, '0')) : c.get })),
-      s, i,
-      jumpable ? {
-        clickable: true,
-        title: `Jump to ${'0x' + addr.toString(16).toUpperCase()} in DISASM`,
-        onclick: () => {
-          router.go('disasm');
-          gotoIn('disasm', addr);
-        }
-      } : {}
-    );
-  });
-  const truncated = filtered.length > 2000
-    ? [el('div', { class: 'i-note', text: `(showing 2000 of ${filtered.length}; symbol table truncated for display)` })]
-    : [];
-  return el('div', { class: 'i-table' }, [
-    tableHeader(cols),
-    ...rows,
-    ...truncated
+function renderSymbols(report) {
+  const headRow = el('tr', {}, [
+    el('th', { text: 'NAME' }),
+    el('th', { text: 'BIND' }),
+    el('th', { text: 'KIND' }),
+    el('th', { text: 'VALUE' }),
+    el('th', { text: 'SIZE' })
   ]);
+  const tbody = el('tbody', {}, report.symbols.map(s => {
+    // v1 keeps its FUNC/NOTYPE-with-addr jump-to-disasm gesture. v2's symbol
+    // rows aren't clickable at all, so we soften by only adding the click
+    // when there's a meaningful address — hover still highlights, matching v2.
+    const jumpable = s._valueRaw !== 0 && (s._type === 2 || s._type === 0);
+    const row = el('tr', jumpable ? {
+      class: 'clickable',
+      title: `Jump to ${s.value} in DISASM`
+    } : {}, [
+      el('td', { class: 'name', text: s.name }),
+      el('td', { text: s.bind }),
+      el('td', { text: s.kind }),
+      el('td', { class: 'addr', text: s.value }),
+      el('td', { class: 'num', text: s.size })
+    ]);
+    if (jumpable) row.addEventListener('click', () => jumpToAddr(s._valueRaw));
+    return row;
+  }));
+  return el('table', {}, [el('thead', {}, [headRow]), tbody]);
 }
 
 export function createInspect() {
-  let activeSub = 'sections';
-  let elf = null;
+  let tab = 'summary';
+  let report = null;
   let parseError = null;
 
-  const subTabs = el('div', { class: 'i-subtabs' });
-  const body = el('div', { class: 'i-body' });
-  const summary = el('div', { class: 'i-summary-host' });
-  const wrap = el('section', { class: 'i-wrap' }, [
-    el('header', { class: 'i-bar' }, [
-      el('span', { class: 'i-title', text: 'INSPECT' }),
-      subTabs
-    ]),
-    summary,
-    body
-  ]);
+  const tabsHost = el('div', { class: 'tabs' });
+  const panel = el('div', { class: 'panel' });
+  const wrap = el('div', { class: 'wrap' }, [tabsHost, panel]);
 
-  function buildSubTabs() {
-    const buttons = TABS.map(id => {
+  function buildTabs() {
+    const buttons = TABS.map(([key, label]) => {
+      const children = [document.createTextNode(label + ' ')];
+      let count = null;
+      if (report) {
+        if (key === 'sections') count = report.sections.length;
+        else if (key === 'segments') count = report.segments.length;
+        else if (key === 'symbols') count = report.summary.n_symbols;
+      }
+      if (count != null) {
+        children.push(el('span', { class: 'ct', text: String(count) }));
+      }
       const btn = el('button', {
-        class: id === activeSub ? 'on' : '',
-        text: id.toUpperCase(),
-        onclick: () => { activeSub = id; refresh(); }
-      });
+        class: `tab${tab === key ? ' active' : ''}`,
+        onclick: () => { tab = key; refresh(); }
+      }, children);
       return btn;
     });
-    replaceChildren(subTabs, buttons);
+    replaceChildren(tabsHost, buttons);
+  }
+
+  function renderPanel() {
+    if (!report) {
+      replaceChildren(panel, []);
+      return;
+    }
+    let body;
+    if (tab === 'summary')       body = renderSummary(report);
+    else if (tab === 'sections') body = renderSections(report);
+    else if (tab === 'segments') body = renderSegments(report);
+    else if (tab === 'symbols')  body = renderSymbols(report);
+    replaceChildren(panel, body ? [body] : []);
+  }
+
+  function showEmpty(message) {
+    report = null;
+    replaceChildren(tabsHost, []);
+    // The empty-state intentionally lives inside .panel so the surrounding
+    // border + paper background still render — v2 has the same behavior when
+    // its report prop is falsy upstream.
+    replaceChildren(panel, [el('p', { class: 'i-empty', text: message })]);
   }
 
   function refresh() {
-    const bytes = fileStore.get().bytes;
-    if (!bytes) {
-      replaceChildren(summary, []);
-      replaceChildren(body, [el('p', { class: 'i-empty', text: 'No file loaded.' })]);
+    const state = fileStore.get();
+    if (!state.bytes) { showEmpty('No file loaded.'); return; }
+    if (state.kind !== 'elf') {
+      showEmpty('This file is not an ELF. Inspect currently supports ELF only.');
       return;
     }
-    const kind = detectFormat(bytes);
-    if (kind !== 'elf') {
-      replaceChildren(summary, []);
-      replaceChildren(body, [
-        el('p', { class: 'i-empty', text: 'This file is not an ELF. Inspect currently supports ELF only.' })
-      ]);
-      return;
-    }
-
-    if (!elf || parseError) {
+    if (!report || parseError) {
       try {
-        elf = parseElf(bytes);
+        report = buildReport(parseElf(state.bytes));
         parseError = null;
       } catch (e) {
         parseError = e;
-        replaceChildren(summary, []);
-        replaceChildren(body, [
-          el('p', { class: 'i-empty', text: `Failed to parse ELF: ${e.message}` })
-        ]);
+        showEmpty(`Failed to parse ELF: ${e.message}`);
         return;
       }
     }
-
-    replaceChildren(summary, [renderSummary(elf)]);
-    buildSubTabs();
-    let panel;
-    if (activeSub === 'sections') panel = renderSections(elf);
-    else if (activeSub === 'segments') panel = renderSegments(elf);
-    else panel = renderSymbols(elf);
-    replaceChildren(body, [panel]);
+    buildTabs();
+    renderPanel();
   }
 
-  fileStore.subscribe(() => {
-    elf = null;
+  const sub = (state) => {
+    report = null;
     parseError = null;
-    activeSub = 'sections';
+    tab = 'summary';
     refresh();
-  });
+  };
+  sub.__dbg = 'inspect.fileSub';
+  fileStore.subscribe(sub);
 
   refresh();
   return wrap;

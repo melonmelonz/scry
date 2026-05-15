@@ -1,36 +1,133 @@
 <script>
-  // Hex viewer with an inline entropy sparkline. The strip across the top
-  // is one column per file block (normalized Shannon entropy 0..1); click
-  // a column to jump there. Useful for spotting packed / encrypted regions
-  // at a glance before reading the rows.
+  // V2 HEX keeps the wasm-backed entropy strip, but rows are rendered as
+  // individual byte cells so the pane can inspect bytes and fields like v1.
   import { ensureWasm } from './wasm.js';
 
-  let { bytes, jumpTo = null } = $props();
+  let { bytes, format = 'unknown', jumpTo = null, followTarget = null } = $props();
 
   let offset = $state(0);
-  const PAGE = 16 * 32; // 32 rows per page
+  const PAGE = 16 * 32;
 
   let rows = $state([]);
   let core = $state(null);
   let entropy = $state([]);
   let blockSize = $state(0);
   let gotoVal = $state('');
+  let selectedOffset = $state(null);
+  let hoveredField = $state(null);
+  let hoveredRow = $state(null);
 
-  // Cross-pane jump choreography. When an external jumpTo arrives we paint
-  // the destination row with --tint-drop and fade it out over ~400ms. The
-  // flash carries one `--fade` custom property the row's transition consumes.
-  let flashOffset = $state(null);   // byte offset (rounded to row) being flashed
-  let flashUntil = $state(0);       // performance.now() ms when fade ends
-  let flashTick = $state(0);        // rerender pulse for the 400ms window
-  let hoveredRow = $state(null);    // 0..rows.length-1 for hover tint
+  let flashOffset = $state(null);
+  let flashUntil = $state(0);
+  let flashTick = $state(0);
   const FLASH_MS = 400;
+
+  let gridEl = $state(null);
+
+  const ELF32_HEADER_OVERLAY = [
+    { offset: 0x00, size: 4, name: 'e_ident.magic', type: 'u32be', description: 'ELF magic (0x7F ELF)' },
+    { offset: 0x04, size: 1, name: 'e_ident.class', type: 'u8', description: '1 = 32-bit, 2 = 64-bit' },
+    { offset: 0x05, size: 1, name: 'e_ident.data', type: 'u8', description: '1 = little-endian, 2 = big-endian' },
+    { offset: 0x06, size: 1, name: 'e_ident.version', type: 'u8' },
+    { offset: 0x07, size: 1, name: 'e_ident.osabi', type: 'u8' },
+    { offset: 0x08, size: 1, name: 'e_ident.abiversion', type: 'u8' },
+    { offset: 0x09, size: 7, name: 'e_ident.pad', type: 'bytes' },
+    { offset: 0x10, size: 2, name: 'e_type', type: 'u16', description: '2 = EXEC, 3 = DYN' },
+    { offset: 0x12, size: 2, name: 'e_machine', type: 'u16', description: '243 = RISC-V, 62 = x86_64' },
+    { offset: 0x14, size: 4, name: 'e_version', type: 'u32' },
+    { offset: 0x18, size: 4, name: 'e_entry', type: 'u32', description: 'Entry-point virtual address' },
+    { offset: 0x1C, size: 4, name: 'e_phoff', type: 'u32' },
+    { offset: 0x20, size: 4, name: 'e_shoff', type: 'u32' },
+    { offset: 0x24, size: 4, name: 'e_flags', type: 'u32' },
+    { offset: 0x28, size: 2, name: 'e_ehsize', type: 'u16' },
+    { offset: 0x2A, size: 2, name: 'e_phentsize', type: 'u16' },
+    { offset: 0x2C, size: 2, name: 'e_phnum', type: 'u16' },
+    { offset: 0x2E, size: 2, name: 'e_shentsize', type: 'u16' },
+    { offset: 0x30, size: 2, name: 'e_shnum', type: 'u16' },
+    { offset: 0x32, size: 2, name: 'e_shstrndx', type: 'u16' },
+  ];
+
+  const GBA_HEADER_OVERLAY = [
+    { offset: 0x000, size: 4, name: 'entry.branch', type: 'bytes', description: 'ARM branch executed by the BIOS after header validation' },
+    { offset: 0x004, size: 156, name: 'nintendo.logo', type: 'bytes', description: 'Fixed Nintendo logo bitmap checked by boot ROM' },
+    { offset: 0x0A0, size: 12, name: 'game.title', type: 'string', description: 'ASCII cartridge title' },
+    { offset: 0x0AC, size: 4, name: 'game.code', type: 'string', description: 'Four-character game code' },
+    { offset: 0x0B0, size: 2, name: 'maker.code', type: 'string', description: 'Two-character maker code' },
+    { offset: 0x0B2, size: 1, name: 'fixed.0x96', type: 'u8', description: 'Fixed value required by the GBA BIOS' },
+    { offset: 0x0B3, size: 1, name: 'unit.code', type: 'u8', description: 'Usually 0x00 for GBA' },
+    { offset: 0x0B4, size: 1, name: 'device.type', type: 'u8', description: 'Device type / debug field' },
+    { offset: 0x0B5, size: 7, name: 'reserved', type: 'bytes' },
+    { offset: 0x0BC, size: 1, name: 'software.version', type: 'u8' },
+    { offset: 0x0BD, size: 1, name: 'complement.checksum', type: 'u8', description: 'Header checksum over bytes 0xA0..0xBC' },
+    { offset: 0x0BE, size: 2, name: 'reserved.tail', type: 'bytes' },
+  ];
+
+  function hex2(n) { return (n >>> 0).toString(16).padStart(2, '0').toUpperCase(); }
+  function hex8(n) { return '0x' + (n >>> 0).toString(16).padStart(8, '0').toUpperCase(); }
+  function asciiCh(n) { return (n >= 0x20 && n <= 0x7E) ? String.fromCharCode(n) : '.'; }
+
+  function activeOverlay() {
+    if (format === 'elf') return ELF32_HEADER_OVERLAY;
+    if (format === 'gba') return GBA_HEADER_OVERLAY;
+    return [];
+  }
+
+  function fieldAt(off) {
+    for (const f of activeOverlay()) {
+      if (off >= f.offset && off < f.offset + f.size) return f;
+    }
+    return null;
+  }
+
+  function readField(f) {
+    if (!bytes || f.offset + f.size > bytes.byteLength) return '-';
+    if (f.type === 'string') {
+      return Array.from(bytes.subarray(f.offset, f.offset + f.size))
+        .map((b) => (b >= 0x20 && b <= 0x7E ? String.fromCharCode(b) : '.'))
+        .join('')
+        .trim();
+    }
+    if (f.type === 'u8') return `0x${hex2(bytes[f.offset])} (${bytes[f.offset]})`;
+    if (f.type === 'u16') {
+      const v = bytes[f.offset] | (bytes[f.offset + 1] << 8);
+      return `0x${v.toString(16).toUpperCase().padStart(4, '0')} (${v})`;
+    }
+    if (f.type === 'u32' || f.type === 'u32be') {
+      const v = f.type === 'u32be'
+        ? (((bytes[f.offset] << 24) | (bytes[f.offset + 1] << 16) | (bytes[f.offset + 2] << 8) | bytes[f.offset + 3]) >>> 0)
+        : ((bytes[f.offset] | (bytes[f.offset + 1] << 8) | (bytes[f.offset + 2] << 16) | (bytes[f.offset + 3] << 24)) >>> 0);
+      return `0x${v.toString(16).toUpperCase().padStart(8, '0')} (${v})`;
+    }
+    return Array.from(bytes.subarray(f.offset, f.offset + f.size)).map(hex2).join(' ');
+  }
+
+  function buildRows() {
+    if (!bytes) return [];
+    const end = Math.min(bytes.byteLength, offset + PAGE);
+    const out = [];
+    for (let rowOff = offset; rowOff < end; rowOff += 16) {
+      const rowEnd = Math.min(bytes.byteLength, rowOff + 16);
+      const cells = [];
+      const ascii = [];
+      for (let off = rowOff; off < rowEnd; off++) {
+        const f = fieldAt(off);
+        cells.push({ off, value: bytes[off], hex: hex2(bytes[off]), field: f, gap: off - rowOff === 7 ? 'wide' : '' });
+        ascii.push({ off, ch: asciiCh(bytes[off]), field: f });
+      }
+      out.push({ off: rowOff, cells, ascii });
+    }
+    return out;
+  }
+
+  function render() {
+    rows = buildRows();
+  }
 
   $effect(() => {
     let cancelled = false;
     ensureWasm().then((c) => {
       if (cancelled) return;
       core = c;
-      // Aim for ~256 columns across the strip so it reads as a sparkline.
       const target = 256;
       blockSize = Math.max(64, Math.ceil((bytes?.length ?? 0) / target));
       entropy = bytes ? core.entropy_blocks(bytes, blockSize) : [];
@@ -39,36 +136,66 @@
     return () => { cancelled = true; };
   });
 
-  // External "jump to offset" trigger (from Inspect tables). Scrolls the
-  // destination row into the top third of the viewport and fires the flash.
   $effect(() => {
-    if (jumpTo == null) return;
-    const o = Math.max(0, Math.min((bytes?.length ?? 1) - 1, Number(jumpTo) | 0));
-    const rowStart = Math.floor(o / 16) * 16;
-    // Page the viewport so the target row exists in `rows`.
+    const b = bytes;
+    offset = 0;
+    selectedOffset = null;
+    hoveredField = null;
+    render();
+    if (core) {
+      blockSize = Math.max(64, Math.ceil((b?.length ?? 0) / 256));
+      entropy = b ? core.entropy_blocks(b, blockSize) : [];
+    }
+  });
+
+  $effect(() => {
+    const f = format;
+    void f;
+    render();
+  });
+
+  function scrollToOffset(o, flash = true) {
+    if (!bytes || !bytes.length) return;
+    const clamped = Math.max(0, Math.min(bytes.length - 1, Number(o) | 0));
+    const rowStart = Math.floor(clamped / 16) * 16;
     const pageStart = Math.floor(rowStart / PAGE) * PAGE;
     offset = pageStart;
     render();
-    flashOffset = rowStart;
-    flashUntil = performance.now() + FLASH_MS;
-    flashTick++;
-
-    // Smooth-scroll the target row into top-third of the .grid viewport.
-    // Defer until the rows have actually painted.
+    if (flash) {
+      flashOffset = rowStart;
+      flashUntil = performance.now() + FLASH_MS;
+      flashTick++;
+    }
     requestAnimationFrame(() => {
-      const grid = gridEl;
-      if (!grid) return;
-      const node = grid.querySelector(`[data-row-off="${rowStart}"]`);
+      if (!gridEl) return;
+      const node = gridEl.querySelector(`[data-row-off="${rowStart}"]`);
       if (!node) return;
-      const gridRect = grid.getBoundingClientRect();
+      const gridRect = gridEl.getBoundingClientRect();
       const nodeRect = node.getBoundingClientRect();
       const targetOffset = nodeRect.top - gridRect.top - gridRect.height / 3;
-      grid.scrollTo({ top: grid.scrollTop + targetOffset, behavior: 'smooth' });
+      gridEl.scrollTo({ top: gridEl.scrollTop + targetOffset, behavior: 'smooth' });
     });
+  }
+
+  $effect(() => {
+    if (jumpTo == null) return;
+    const target = typeof jumpTo === 'object' ? jumpTo.o : jumpTo;
+    scrollToOffset(target, true);
   });
 
-  // Tick the flash window so the row's inline style decays smoothly even
-  // without a Svelte state change. rAF until flashUntil; then clean up.
+  let lastFollowRow = -1;
+  $effect(() => {
+    const f = followTarget;
+    if (!f || typeof f.offset !== 'number') {
+      lastFollowRow = -1;
+      return;
+    }
+    const row = Math.floor(f.offset / 16);
+    if (row === lastFollowRow) return;
+    lastFollowRow = row;
+    scrollToOffset(f.offset, false);
+  });
+
   $effect(() => {
     if (flashTick === 0) return;
     let raf = 0;
@@ -84,13 +211,6 @@
     return () => cancelAnimationFrame(raf);
   });
 
-  let gridEl = $state(null);
-
-  function render() {
-    if (!core || !bytes) return;
-    rows = core.hex_rows(bytes, offset, PAGE);
-  }
-
   function move(d) {
     offset = Math.max(0, Math.min((bytes?.length ?? 0) - 1, offset + d));
     offset = Math.floor(offset / 16) * 16;
@@ -104,9 +224,7 @@
     if (v.startsWith('0x') || v.startsWith('0X')) v = v.slice(2);
     const n = parseInt(v, 16);
     if (!Number.isFinite(n)) return;
-    offset = Math.max(0, Math.min((bytes?.length ?? 1) - 1, n));
-    offset = Math.floor(offset / 16) * 16;
-    render();
+    scrollToOffset(n, true);
   }
 
   function clickEntropy(e) {
@@ -115,42 +233,38 @@
     const rect = strip.getBoundingClientRect();
     const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const target = Math.floor(frac * bytes.length);
-    offset = Math.floor(target / 16) * 16;
-    render();
+    scrollToOffset(target, true);
   }
 
-  // The orange marker indicating current viewport position over the strip.
-  let viewportFrac = $derived(
-    bytes && bytes.length ? offset / bytes.length : 0
-  );
+  function byteDetail() {
+    if (!bytes || selectedOffset == null || selectedOffset < 0 || selectedOffset >= bytes.length) return null;
+    const v = bytes[selectedOffset];
+    const u16 = selectedOffset + 1 < bytes.length ? (bytes[selectedOffset] | (bytes[selectedOffset + 1] << 8)) : null;
+    const u32 = selectedOffset + 3 < bytes.length
+      ? ((bytes[selectedOffset] | (bytes[selectedOffset + 1] << 8) | (bytes[selectedOffset + 2] << 16) | (bytes[selectedOffset + 3] << 24)) >>> 0)
+      : null;
+    const parts = [`OFF ${hex8(selectedOffset)}`, `BYTE 0x${hex2(v)} (${v})`, `ASCII '${asciiCh(v)}'`];
+    if (u16 !== null) parts.push(`U16LE 0x${u16.toString(16).toUpperCase().padStart(4, '0')}`);
+    if (u32 !== null) parts.push(`U32LE 0x${u32.toString(16).toUpperCase().padStart(8, '0')}`);
+    return parts.join(' \u00B7 ');
+  }
 
-  // Compute the per-row flash alpha (0..1) given the live flashTick.
-  // The `_` parameter forces callers to pass `flashTick` so Svelte tracks
-  // it as a reactive read and re-evaluates inline styles each rAF tick.
+  let viewportFrac = $derived(bytes && bytes.length ? offset / bytes.length : 0);
+
   function flashAlphaFor(rowOff, _tick) {
     if (flashOffset == null || rowOff !== flashOffset) return 0;
     const remaining = flashUntil - performance.now();
     if (remaining <= 0) return 0;
     return remaining / FLASH_MS;
   }
-
-  // Each row in `rows` is a preformatted "00000000  ff ee ...  |....| " line.
-  // We expose them as paired (offset, text) so we can set per-row attributes.
-  let rowsWithOff = $derived.by(() => {
-    const out = [];
-    for (let i = 0; i < rows.length; i++) {
-      out.push({ off: offset + i * 16, text: rows[i] });
-    }
-    return out;
-  });
 </script>
 
 <div class="wrap">
   <div class="bar">
     <span class="ti">[ HEX ]</span>
     <div class="ctl">
-      <button onclick={() => move(-PAGE)}>◀ PAGE</button>
-      <button onclick={() => move(-16)}>▲ ROW</button>
+      <button onclick={() => move(-PAGE)}>&#9664; PAGE</button>
+      <button onclick={() => move(-16)}>&#9650; ROW</button>
       <form class="goto" onsubmit={gotoOffset}>
         <span class="at">@</span>
         <input
@@ -160,8 +274,8 @@
           aria-label="Jump to hex offset"
         />
       </form>
-      <button onclick={() => move(16)}>▼ ROW</button>
-      <button onclick={() => move(PAGE)}>PAGE ▶</button>
+      <button onclick={() => move(16)}>&#9660; ROW</button>
+      <button onclick={() => move(PAGE)}>PAGE &#9654;</button>
     </div>
   </div>
 
@@ -169,7 +283,7 @@
     <div class="strip-wrap">
       <span class="strip-label">ENTROPY</span>
       <div class="strip" onclick={clickEntropy} role="presentation" title="Click to jump">
-        {#each entropy as e, i}
+        {#each entropy as e}
           <span class="strip-col" style="height: {Math.max(2, e * 100)}%; opacity: {0.35 + e * 0.65}"></span>
         {/each}
         <span class="strip-cursor" style="left: {viewportFrac * 100}%"></span>
@@ -178,17 +292,70 @@
     </div>
   {/if}
 
-  <pre class="grid" bind:this={gridEl}>{#each rowsWithOff as r, i}<span
-      class="hex-row"
-      class:hover={hoveredRow === i}
-      class:flash={r.off === flashOffset}
-      data-row-off={r.off}
-      role="presentation"
-      style={r.off === flashOffset ? `--flash-a: ${flashAlphaFor(r.off, flashTick)}` : ''}
-      onmouseenter={() => (hoveredRow = i)}
-      onmouseleave={() => (hoveredRow === i && (hoveredRow = null))}
-    >{r.text}
-</span>{/each}</pre>
+  <div class="grid" bind:this={gridEl}>
+    {#each rows as r, i}
+      <div
+        class="hex-row"
+        role="presentation"
+        class:hover={hoveredRow === i}
+        class:flash={r.off === flashOffset}
+        data-row-off={r.off}
+        style={r.off === flashOffset ? `--flash-a: ${flashAlphaFor(r.off, flashTick)}` : ''}
+        onmouseenter={() => (hoveredRow = i)}
+        onmouseleave={() => (hoveredRow === i && (hoveredRow = null))}
+      >
+        <span class="addr">{hex8(r.off)}</span>
+        <span class="bytes">
+          {#each r.cells as c, ci}
+            <button
+              type="button"
+              class="byte"
+              class:ovr={!!c.field}
+              class:hot={hoveredField && c.field === hoveredField}
+              class:sel={selectedOffset === c.off}
+              title={c.field ? c.field.name : `offset ${hex8(c.off)}`}
+              onclick={() => (selectedOffset = c.off)}
+              onmouseenter={() => (hoveredField = c.field)}
+              onmouseleave={() => (hoveredField === c.field && (hoveredField = null))}
+            >{c.hex}</button>{#if ci < r.cells.length - 1}<span class:wide={c.gap === 'wide'}> </span>{/if}
+          {/each}
+        </span>
+        <span class="ascii">
+          {#each r.ascii as c}
+            <button
+              type="button"
+              class="char"
+              class:ovr={!!c.field}
+              class:hot={hoveredField && c.field === hoveredField}
+              class:sel={selectedOffset === c.off}
+              onclick={() => (selectedOffset = c.off)}
+              onmouseenter={() => (hoveredField = c.field)}
+              onmouseleave={() => (hoveredField === c.field && (hoveredField = null))}
+            >{c.ch}</button>
+          {/each}
+        </span>
+      </div>
+    {/each}
+  </div>
+
+  <div class="detail">
+    {#if hoveredField}
+      <div class="field">
+        <span class="d-l">FIELD</span>
+        <span class="d-v strong">{hoveredField.name}</span>
+        <span class="d-l">OFFSET</span>
+        <span class="d-v">{hex8(hoveredField.offset)}</span>
+        <span class="d-l">VALUE</span>
+        <span class="d-v mint">{readField(hoveredField)}</span>
+        {#if hoveredField.description}
+          <span class="d-l">NOTE</span>
+          <span class="d-v">{hoveredField.description}</span>
+        {/if}
+      </div>
+    {:else}
+      {byteDetail() ?? 'select a byte or hover a highlighted field'}
+    {/if}
+  </div>
 </div>
 
 <style>
@@ -222,7 +389,6 @@
     text-transform: uppercase;
   }
 
-  /* ─── Entropy strip ────────────────────────── */
   .strip-wrap {
     display: grid;
     grid-template-columns: auto 1fr auto;
@@ -268,23 +434,62 @@
     min-height: 0;
     border: 1px solid var(--rule);
     background: var(--paper);
-    padding: 10px;
+    padding: 8px 0;
     font-size: 11px;
-    line-height: 1.45;
-    white-space: pre;
+    line-height: 20px;
     font-family: var(--mono);
   }
-  /* Each row paints inline so background highlights snap to the row box. */
   .hex-row {
-    display: block;
-    background: transparent;
+    display: grid;
+    grid-template-columns: 100px 1fr 170px;
+    gap: 22px;
+    padding: 0 12px;
+    align-items: center;
+    min-height: 20px;
+    white-space: nowrap;
     transition: background 80ms ease;
-    /* The flash background reads --flash-a; fading the alpha gives a calm
-       fade-to-transparent over the rAF loop rather than a single jump. */
   }
   .hex-row.hover { background: var(--tint-row); }
   .hex-row.flash {
-    /* --tint-drop is rgba already; we layer a fading rgba over it via alpha */
     background: color-mix(in srgb, var(--tint-drop) calc(var(--flash-a, 0) * 100%), transparent);
   }
+  .addr { color: var(--muted); }
+  .bytes { letter-spacing: 0.04em; }
+  .byte, .char {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    padding: 0 1px;
+    cursor: pointer;
+  }
+  .byte.ovr, .char.ovr { background: var(--mint-pale); }
+  .byte.hot, .char.hot, .byte:hover, .char:hover { background: var(--mint); color: var(--ink); }
+  .byte.sel, .char.sel { background: var(--mint-deep); color: var(--paper); }
+  .ascii { color: var(--muted); }
+  .ascii .char.ovr { color: var(--ink); }
+  .wide { display: inline-block; width: 8px; }
+
+  .detail {
+    min-height: 48px;
+    border-left: 2px solid var(--mint-deep);
+    background: var(--mint-pale);
+    padding: 10px 14px;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .field {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    gap: 3px 12px;
+  }
+  .d-l { color: var(--mint-deep); font-size: 9px; letter-spacing: 0.14em; }
+  .d-v { color: var(--ink); text-transform: none; letter-spacing: 0.02em; }
+  .d-v.strong { font-weight: 600; }
+  .d-v.mint { color: var(--mint-deep); }
 </style>

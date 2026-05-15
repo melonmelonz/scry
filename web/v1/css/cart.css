@@ -1,0 +1,60 @@
+/* CART pane — verbatim port of web/v2/src/lib/Cart.svelte's <style> block.
+   Class names match exactly so the V1/V2 toggle is visually identical. */
+
+.c-wrap {
+  display: flex; flex-direction: column;
+  height: 100%; padding: 0 22px 22px;
+  min-height: 0;
+}
+.c-bar {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 18px; padding: 16px 0 12px;
+  border-bottom: 1px solid var(--grey);
+}
+.c-title { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.c-meta  { font-size: 10px; color: var(--mint-deep); letter-spacing: 0.08em; }
+
+.c-empty { padding: 28px 0; color: var(--muted); font-size: 11px; font-style: italic; }
+
+.c-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 28px;
+  padding: 18px 0 0;
+  min-height: 0;
+  overflow: auto;
+}
+.c-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.c-section-title {
+  font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 6px;
+}
+.c-row { display: flex; gap: 12px; align-items: baseline; font-size: 11px; letter-spacing: 0.02em; }
+.c-row .l { width: 92px; flex-shrink: 0; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.c-row .v { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.c-note {
+  margin-top: 18px;
+  font-size: 10px;
+  color: var(--muted);
+  font-style: italic;
+  line-height: 1.6;
+}
+.c-note code { font-style: normal; color: var(--ink-dim); }
+
+.c-hex { display: flex; flex-direction: column; gap: 2px; }
+.c-hex-row {
+  display: grid;
+  grid-template-columns: 92px 1fr 160px;
+  gap: 14px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+.c-hex-row .addr  { color: var(--muted); }
+.c-hex-row .bytes { color: var(--ink); white-space: pre; }
+.c-hex-row .ascii { color: var(--ink-dim); white-space: pre; }
+
+@media (max-width: 900px) {
+  .c-split { grid-template-columns: 1fr; }
+}

@@ -23,6 +23,7 @@
   let theme  = $state(currentTheme());
   let parsing = $state(false);
   let hexJumpTo = $state(null);
+  let gamePc = $state(null);
 
   // First-paint status-bar type-out. Session-gated so it only happens on
   // cold load, not every navigation.
@@ -69,6 +70,27 @@
     return (n / 1024 / 1024).toFixed(1) + ' MiB';
   }
 
+  function sampledEntropyBits(bytes) {
+    if (!bytes || bytes.length === 0) return null;
+    const cap = 256 * 1024;
+    const stride = Math.max(1, Math.ceil(bytes.length / cap));
+    const hist = new Uint32Array(256);
+    let n = 0;
+    for (let i = 0; i < bytes.length; i += stride) {
+      hist[bytes[i]]++;
+      n++;
+    }
+    if (!n) return null;
+    let h = 0;
+    for (let i = 0; i < hist.length; i++) {
+      const c = hist[i];
+      if (!c) continue;
+      const p = c / n;
+      h -= p * Math.log2(p);
+    }
+    return h;
+  }
+
   async function onfile({ name, bytes }) {
     file = { name, bytes };
     error = '';
@@ -78,6 +100,7 @@
     strings = null;
     format = null;
     avgEntropy = null;
+    gamePc = null;
     parsing = true;
     try {
       const core = await ensureWasm();
@@ -94,17 +117,15 @@
       } else {
         view = 'hex';
       }
-      // Strings + entropy are format-agnostic; run them on anything.
-      strings = core.extract_strings(bytes, 4);
-      // Whole-buffer average entropy for the summary line. 64-byte blocks
-      // match the Hex view's resolution; entropy_blocks returns 0..1
-      // normalized, so we multiply by 8 to get Shannon bits.
-      const block = Math.max(64, Math.ceil(bytes.length / 256));
-      const e = core.entropy_blocks(bytes, block);
-      if (e.length) {
-        let sum = 0;
-        for (let i = 0; i < e.length; i++) sum += e[i];
-        avgEntropy = (sum / e.length) * 8;
+
+      if (format === 'elf') {
+        strings = core.extract_strings(bytes, 4);
+      }
+      // Keep load-to-view fast for large carts. The full entropy strip still
+      // computes in HEX when requested; the header summary only needs a
+      // sampled estimate.
+      if (format !== 'gba') {
+        avgEntropy = sampledEntropyBits(bytes);
       }
     } catch (e) {
       error = String(e);
@@ -115,7 +136,7 @@
 
   function reset() {
     file = null; report = null; wavReport = null; gbaHeader = null; strings = null; format = null; error = '';
-    avgEntropy = null;
+    avgEntropy = null; gamePc = null;
   }
 
   function onDropError(msg) {
@@ -129,6 +150,10 @@
     view = 'hex';
     // Force the effect to re-fire even if the same offset is asked for.
     hexJumpTo = { o, t: performance.now() };
+  }
+
+  function onGamePcUpdate(pc) {
+    gamePc = pc;
   }
 
   // Build a compact bracketed format chip from parsed info, e.g.
@@ -291,13 +316,18 @@
               <p class="todo">v2 currently inspects ELF only. Detected: <b>{format}</b>. PE / Mach-O / WASM headers-only panes are on the roadmap.</p>
             {/if}
           {:else if view === 'hex'}
-            <Hex bytes={file.bytes} jumpTo={hexJumpTo?.o} />
+            <Hex
+              bytes={file.bytes}
+              format={format}
+              jumpTo={hexJumpTo}
+              followTarget={gamePc?.follow && gamePc?.inCart ? gamePc : null}
+            />
           {:else if view === 'wave'}
             <Wave bytes={file.bytes} />
           {:else if view === 'cart'}
             <Cart bytes={file.bytes} />
           {:else if view === 'game'}
-            <Game bytes={file.bytes} header={gbaHeader} />
+            <Game bytes={file.bytes} header={gbaHeader} onPcUpdate={onGamePcUpdate} />
           {/if}
         {/if}
       </main>

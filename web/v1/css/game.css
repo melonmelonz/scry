@@ -1,45 +1,53 @@
-/* GAME pane: split layout — emulator left, full HEX inspector right. */
-.s-game { height: 100%; display: flex; min-height: 0; }
-.game-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0;
-  flex: 1;
-  min-height: 0;
-}
-.game-left, .game-right {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-}
-.game-left  {
-  border-right: 1px solid var(--rule-soft);
-  padding: 16px 22px;
-}
-.game-right {
-  /* No padding — the embedded .hex-wrap brings its own internal padding. */
-  padding: 0;
-}
+/* GAME pane — verbatim port of v2's Game.svelte <style> block plus
+   MiniHex.svelte <style> block. Class names match v2 (g-*, mh-*) so
+   v1's DOM-mirror modules in js/modules/game.js + js/modules/minihex.js
+   render pixel-for-pixel identically to v2. The parent shell's V1/V2
+   toggle is meaningless if the two engines look different. */
 
-.game-bar {
+/* ── Game.svelte ────────────────────────────────────────────────────── */
+.g-wrap {
+  display: flex; flex-direction: column;
+  height: 100%; padding: 0 22px 22px;
+  min-height: 0;
+}
+.g-bar {
   display: flex; align-items: baseline; justify-content: space-between;
-  gap: 18px; padding: 0 0 12px;
+  gap: 18px; padding: 16px 0 12px;
   border-bottom: 1px solid var(--grey);
 }
-.game-right > .game-bar {
-  padding: 16px 22px 12px;
-  margin: 0;
-}
-.game-title { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
-.game-hint  { font-size: 10px; color: var(--mint-deep); letter-spacing: 0.06em; }
+.g-title { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.g-meta  { font-size: 10px; color: var(--mint-deep); letter-spacing: 0.08em; }
 
-.game-canvas-wrap {
-  display: flex; align-items: center; justify-content: center;
+.g-split {
   flex: 1; min-height: 0;
-  padding: 14px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  padding: 14px 0 0;
 }
-.game-canvas {
+.g-left {
+  display: flex; flex-direction: column;
+  min-height: 0; min-width: 0;
+}
+.g-right {
+  display: flex; flex-direction: column;
+  min-height: 0; min-width: 0;
+  gap: 8px;
+}
+.g-sub-bar {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px;
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+}
+.g-sub-title { color: var(--muted); }
+.g-sub-hint  { color: var(--muted); font-size: 9px; }
+
+.g-canvas-wrap {
+  flex: 1; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 0 12px;
+}
+.g-canvas {
   width: 480px;
   height: 320px;
   max-width: 100%;
@@ -49,144 +57,192 @@
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
   outline: 1px solid var(--rule);
+  border: 0;
+  display: block;
 }
-.game-canvas:focus { outline: 2px solid var(--mint-deep); }
+.g-canvas:focus { outline: 2px solid var(--mint-deep); }
 
-.game-controls {
+.g-controls {
   display: flex; align-items: center; gap: 10px;
-  padding: 12px 0 0;
-  border-top: 1px solid var(--rule-soft);
-}
-.game-btn {
-  font: inherit;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  padding: 6px 14px;
-  background: var(--paper);
-  color: var(--ink);
-  border: 1px solid var(--grey);
-  cursor: pointer;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
-}
-.game-btn:hover {
-  background: var(--mint-pale);
-  border-color: var(--mint-deep);
-  color: var(--mint-deep);
-}
-.game-status {
-  margin-left: auto;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-/* Compact cartridge-header row above the embedded hex inspector. */
-.game-cart-head-wrap {
-  padding: 10px 22px;
-  border-bottom: 1px solid var(--rule-soft);
-}
-.game-cart-head {
-  display: flex;
+  padding-top: 10px;
+  border-top: 1px solid var(--grey);
   flex-wrap: wrap;
-  gap: 6px 18px;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
 }
-.game-cart-head .k {
-  font-size: 9px;
+.g-btn {
+  font-family: inherit;
+  font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--muted);
-  margin-right: 4px;
+  color: var(--mint-deep);
+  background: transparent;
+  border: 1px solid var(--mint-deep);
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
 }
-.game-cart-head .v { color: var(--ink); }
+.g-btn:hover:not(:disabled) { color: var(--paper); background: var(--mint-deep); }
+.g-btn:disabled { color: var(--rule); border-color: var(--rule); cursor: not-allowed; }
+.g-btn-on { color: var(--paper); background: var(--mint-deep); }
 
-/* The embedded hex inspector fills the rest of the right column. */
-.game-hex-embed {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ── Lightweight virtualized hex viewer inside the GAME pane ───────────
-   These styles are critical: the scroll container MUST have a bounded
-   height and overflow:auto, otherwise the ~20-million-pixel virtual
-   bottom-pad (1M rows × 20px for a 16 MiB cart) escapes its parent and
-   forces the browser to lay out a page-tall-of-the-Empire-State element,
-   which freezes the tab for several seconds on click. */
-.game-hex-mini {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  border-top: 1px solid var(--rule-soft);
-}
-.game-hex-mini-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 22px;
-  border-bottom: 1px solid var(--rule-soft);
-}
-.game-hex-mini-title {
+.g-follow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: inherit;
   font-size: 10px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
+  background: transparent;
+  border: 1px dashed var(--rule);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease,
+              border-color 120ms ease;
 }
-.game-hex-mini-jumpform {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.g-follow:hover:not(:disabled) { color: var(--mint-deep); border-color: var(--mint-deep); }
+.g-follow:disabled { color: var(--rule); border-color: var(--rule); cursor: not-allowed; }
+.g-follow-led {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  background: transparent;
+  display: inline-block;
+  transition: background 120ms ease, box-shadow 120ms ease;
 }
-.game-hex-mini-jumplab {
+.g-follow-on {
+  color: var(--paper);
+  background: var(--mint-deep);
+  border-style: solid;
+  border-color: var(--mint-deep);
+}
+.g-follow-on .g-follow-led {
+  background: var(--paper);
+  box-shadow: 0 0 6px var(--paper);
+}
+
+.g-pc-dim { color: var(--muted); }
+.g-pc-note { color: var(--muted); margin-left: 6px; font-size: 9px; }
+.g-pc-trail {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3px;
+  max-height: 132px;
+  overflow: auto;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  padding: 7px 9px;
+  font-size: 10px;
+}
+.g-trail-title {
   font-size: 9px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
+  margin-bottom: 2px;
 }
-.game-hex-mini-jump {
-  font: inherit;
-  font-size: 11px;
+.g-trail-row {
+  display: grid;
+  grid-template-columns: 34px 1fr 1fr 48px;
+  gap: 8px;
+  align-items: center;
+  border: 0;
+  border-left: 2px solid transparent;
   background: transparent;
   color: var(--ink);
-  border: 1px solid var(--rule);
-  padding: 3px 8px;
-  width: 110px;
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1.5;
+  text-align: left;
+  padding: 1px 0 1px 6px;
+  cursor: pointer;
 }
-.game-hex-mini-jump:focus { outline: none; border-color: var(--mint-deep); }
+.g-trail-row:hover { background: var(--tint-row); border-left-color: var(--mint-deep); }
+.g-trail-row.hot { background: var(--mint-pale); }
+.g-trail-age, .g-trail-mode { color: var(--muted); font-size: 9px; letter-spacing: 0.08em; }
+.g-trail-off { color: var(--mint-deep); }
 
-.game-hex-mini-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 6px 0;
-  font-variant-numeric: tabular-nums;
-  position: relative;
+.g-status {
+  font-size: 10px; letter-spacing: 0.12em; color: var(--muted);
+  margin-left: 4px;
 }
-.game-hex-mini-pad { width: 1px; }
-.game-hex-mini-row {
+.g-hint {
+  margin-left: auto;
+  font-size: 9px; letter-spacing: 0.12em; color: var(--muted); text-transform: uppercase;
+}
+
+@media (max-width: 960px) {
+  .g-split {
+    grid-template-columns: 1fr;
+    grid-auto-rows: minmax(0, auto);
+  }
+}
+@media (max-width: 760px) {
+  .g-wrap { padding: 0 14px 14px; }
+  .g-hint { display: none; }
+}
+
+/* ── MiniHex.svelte ─────────────────────────────────────────────────── */
+.mh-host {
+  display: flex; flex-direction: column;
+  min-height: 0; height: 100%;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+}
+.mh-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 8px 10px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+}
+.mh-title { color: var(--muted); }
+.mh-jumpform { display: flex; align-items: center; gap: 6px; }
+.mh-jumplab { color: var(--muted); font-size: 9px; }
+.mh-jump {
+  font-family: inherit; font-size: 10px;
+  background: transparent; color: var(--ink);
+  border: 1px solid var(--rule);
+  padding: 3px 6px; width: 11ch;
+}
+.mh-jump:focus { outline: 1px solid var(--mint-deep); border-color: var(--mint-deep); }
+
+.mh-scroll {
+  flex: 1; min-height: 0;
+  overflow-y: auto; overflow-x: hidden;
+  position: relative;
+  padding: 6px 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px; line-height: 20px;
+  color: var(--ink);
+}
+.mh-sizer { position: relative; width: 100%; }
+.mh-row {
   display: grid;
   grid-template-columns: 90px 1fr 18ch;
-  gap: 16px;
-  height: 20px;
-  align-items: center;
-  padding: 0 22px;
-  font-size: 11px;
-  line-height: 20px;
-  white-space: pre;
+  gap: 14px;
+  padding: 0 10px;
+  white-space: nowrap;
 }
-.game-hex-mini-row .addr  { color: var(--muted); }
-.game-hex-mini-row .bytes { color: var(--ink); }
-.game-hex-mini-row .ascii { color: var(--muted); }
-
-/* Narrow screens: stack the panes. */
-@media (max-width: 1000px) {
-  .game-split { grid-template-columns: 1fr; }
-  .game-left  { border-right: none; border-bottom: 1px solid var(--rule-soft); }
-  .game-right { min-height: 60vh; }
+.mh-row .mh-addr { color: var(--muted); }
+.mh-row .mh-bytes { letter-spacing: 0.04em; }
+.mh-row .mh-ascii { color: var(--muted); }
+.mh-cell, .mh-char { cursor: pointer; padding: 0 1px; }
+.mh-cell:hover, .mh-char:hover { background: var(--mint); color: var(--ink); }
+.mh-cell.mh-selected, .mh-char.mh-selected {
+  background: var(--mint-deep);
+  color: var(--paper);
+}
+.mh-cell.mh-pc-byte, .mh-char.mh-pc-byte {
+  outline: 1px solid var(--mint-deep);
+  outline-offset: -1px;
+}
+.mh-row.mh-cursor { background: var(--mint-pale); }
+.mh-row.mh-cursor .mh-addr,
+.mh-row.mh-cursor .mh-ascii { color: var(--ink); }
+.mh-detail {
+  border-top: 1px solid var(--rule);
+  padding: 7px 10px;
+  min-height: 30px;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }

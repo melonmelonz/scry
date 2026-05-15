@@ -1,12 +1,7 @@
 import { fileStore, clearFile } from '../stores/file.js';
 import { el, replaceChildren } from '../dom.js';
 import { createThemeToggle } from './theme.js';
-
-function sizeFmt(n) {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KiB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MiB`;
-}
+import { fmtBytes } from '../fmt.js';
 
 export function createHeader() {
   const host = document.createElement('header');
@@ -37,7 +32,7 @@ export function createHeader() {
       });
       meta = el('span', { class: 's-meta' }, [
         el('span', {}, ['FILE', el('span', { class: 'v', text: state.name })]),
-        el('span', {}, ['SIZE', el('span', { class: 'v', text: sizeFmt(state.bytes.byteLength) })]),
+        el('span', {}, ['SIZE', el('span', { class: 'v', text: fmtBytes(state.bytes.byteLength) })]),
         close
       ]);
     } else {

@@ -306,7 +306,7 @@ iframe.surface.ready {
     var s = null;
     try { s = localStorage.getItem(MODEKEY); } catch (e) {}
     if (s === 'v1' || s === 'v2') return s;
-    return 'v2';
+    return 'v1';
   }
 
   function setMode(m) {

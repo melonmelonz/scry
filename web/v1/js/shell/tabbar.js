@@ -1,25 +1,8 @@
 import { router } from '../stores/router.js';
 import { fileStore } from '../stores/file.js';
-import { detectFormat } from '../format/detect.js';
 
-function hasFile() {
-  return fileStore.get().bytes !== null;
-}
-
-function isELF() {
-  const b = fileStore.get().bytes;
-  return b !== null && detectFormat(b) === 'elf';
-}
-
-function isWAV() {
-  const b = fileStore.get().bytes;
-  return b !== null && detectFormat(b) === 'wav';
-}
-
-function isGBA() {
-  const b = fileStore.get().bytes;
-  return b !== null && detectFormat(b) === 'gba';
-}
+function hasFile() { return fileStore.get().bytes !== null; }
+function isKind(k) { return fileStore.get().kind === k; }
 
 // Phase 1 (v1) — each tab decides its own availability via `enabled` and
 // explains its disabled state via `disabledReason` so the user sees a
@@ -27,7 +10,7 @@ function isGBA() {
 const TABS = [
   {
     id: 'inspect', label: 'INSPECT',
-    enabled: () => isELF(),
+    enabled: () => isKind('elf'),
     disabledReason: () => hasFile() ? 'INSPECT is ELF-only' : 'Load a file first',
   },
   {
@@ -37,8 +20,18 @@ const TABS = [
   },
   {
     id: 'wave', label: 'WAVE',
-    enabled: () => isWAV(),
+    enabled: () => isKind('wav'),
     disabledReason: () => hasFile() ? 'WAVE is RIFF/WAVE-only' : 'Load a file first',
+  },
+  {
+    id: 'cart', label: 'CART',
+    enabled: () => isKind('gba'),
+    disabledReason: () => hasFile() ? 'CART is GBA-cart-only' : 'Load a file first',
+  },
+  {
+    id: 'game', label: 'GAME',
+    enabled: () => isKind('gba'),
+    disabledReason: () => hasFile() ? 'GAME is GBA-cart-only' : 'Load a file first',
   },
   {
     id: 'disasm', label: 'DISASM',
@@ -54,11 +47,6 @@ const TABS = [
     id: 'trace', label: 'TRACE',
     enabled: () => hasFile(),
     disabledReason: () => 'Load a file first',
-  },
-  {
-    id: 'game', label: 'GAME',
-    enabled: () => isGBA(),
-    disabledReason: () => hasFile() ? 'GAME is GBA-cart-only' : 'Load a file first',
   },
 ];
 

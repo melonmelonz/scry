@@ -1,5 +1,4 @@
 import { fileStore } from '../stores/file.js';
-import { detectFormat } from '../format/detect.js';
 import { parseElf } from '../elf/parse.js';
 import { loadFromElf } from '../emu/loader.js';
 import { ABI } from '../emu/cpu.js';
@@ -160,7 +159,7 @@ export function createEmu() {
       renderRegs(); renderMemPeek();
       return;
     }
-    if (detectFormat(bytes) !== 'elf') {
+    if (fileStore.get().kind !== 'elf') {
       warn.textContent = 'Emulator needs an ELF.';
       renderRegs(); renderMemPeek();
       return;

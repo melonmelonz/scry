@@ -48,6 +48,13 @@
   <script>
     window.GameBoyAdvance = GameBoyAdvance;
     window.biosBin = biosBin;
+    // Expose the software renderer so Game.svelte can swap out the broken
+    // proxy renderer. proxy.js does `new Worker('js/video/worker.js')` —
+    // that URL resolves relative to the document, which under our Pages
+    // deployment is /scry/v2/js/video/worker.js (404). Worker fetch errors
+    // fire async, so video.js's sync try/catch doesn't fall back. We force
+    // software ourselves at construction time.
+    window.GameBoyAdvanceSoftwareRenderer = GameBoyAdvanceSoftwareRenderer;
   </script>
   <script type="module" src="/src/main.js"></script>
 </body>

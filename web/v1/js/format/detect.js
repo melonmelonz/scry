@@ -23,10 +23,9 @@ function isGbaCart(bytes) {
   return bytes && bytes.byteLength >= 0xC0 && bytes[0xB2] === 0x96;
 }
 
-let __dbgDetectCount = 0;
+// Called exactly once per file change, by stores/file.js#loadFile. The
+// result is cached in fileStore.kind for the rest of the file's lifetime.
 export function detectFormat(bytes) {
-  __dbgDetectCount++;
-  if (__dbgDetectCount % 10 === 1) console.log('[scry/dbg] detectFormat call #' + __dbgDetectCount);
   if (startsWith(bytes, ELF_MAGIC)) return 'elf';
   if (startsWith(bytes, RIFF_MAGIC) && startsWith(bytes, WAVE_TAG, 8)) return 'wav';
   if (startsWith(bytes, PNG_MAGIC)) return 'png';

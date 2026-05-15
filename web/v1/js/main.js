@@ -9,10 +9,10 @@ import { createDisasm } from './modules/disasm.js';
 import { createEmu } from './modules/emu.js';
 import { createTrace } from './modules/trace.js';
 import { createWave } from './modules/wave.js';
+import { createCart } from './modules/cart.js';
 import { createGame } from './modules/game.js';
 import { fileStore, ingestFile, loadFile } from './stores/file.js';
 import { router } from './stores/router.js';
-import { detectFormat } from './format/detect.js';
 import { buildDemoElf, DEMO_NAME } from './demo/rv32_demo.js';
 
 function mount() {
@@ -27,20 +27,25 @@ function mount() {
   const body = document.createElement('div');
   body.className = 's-body';
   const rail = createFileRail();
+  const work = document.createElement('div');
+  work.className = 's-work';
   const main = document.createElement('main');
   main.className = 's-main';
+  work.appendChild(tabs);
+  work.appendChild(main);
   body.appendChild(rail);
-  body.appendChild(main);
+  body.appendChild(work);
   const status = createStatusBar();
 
   app.appendChild(header);
-  app.appendChild(tabs);
   app.appendChild(body);
   app.appendChild(status);
 
   root.appendChild(app);
 
-  // Lazily-built module elements.
+  // Lazily-built module elements. Route names here are the source of truth
+  // for what's reachable — the router learns its allow-set from these keys
+  // (see router.setValid below) so adding a tab is a one-line change.
   const factories = {
     empty:   createEmpty,
     hex:     createHex,
@@ -49,38 +54,42 @@ function mount() {
     emu:     createEmu,
     trace:   createTrace,
     wave:    createWave,
+    cart:    createCart,
     game:    createGame
   };
+  router.setValid(Object.keys(factories));
   const mounted = {};
 
+  // Default landing route per detected format. Returns 'empty' when no file
+  // is loaded. Reads the cached `kind` off fileStore (computed once at load
+  // time) instead of re-running magic-byte detection on every call.
+  const KIND_TO_ROUTE = { elf: 'inspect', wav: 'wave', gba: 'game' };
   function defaultRouteForFile() {
-    const bytes = fileStore.get().bytes;
+    const { bytes, kind } = fileStore.get();
     if (!bytes) return 'empty';
-    const fmt = detectFormat(bytes);
-    if (fmt === 'elf') return 'inspect';
-    if (fmt === 'wav') return 'wave';
-    if (fmt === 'gba') return 'game';
-    return 'hex';
+    return KIND_TO_ROUTE[kind] ?? 'hex';
   }
+  // Format-gated tabs: each entry says "this route is only valid when the
+  // loaded file has this kind." Anything not listed here is universally OK
+  // for any loaded file.
+  const KIND_GATED = { inspect: 'elf', wave: 'wav', cart: 'gba', game: 'gba' };
 
   function showRoute(route) {
-    const hasFile = fileStore.get().bytes !== null;
+    const { bytes, kind } = fileStore.get();
+    const hasFile = bytes !== null;
     let target = route;
 
     // Auto-redirects.
     if (!hasFile && target !== 'empty') target = 'empty';
     if (hasFile && target === 'empty') target = defaultRouteForFile();
 
-    // Re-gate against disabled routes. If the current tab isn't valid for the
-    // newly-loaded format, fall back to the format's "best landing" tab —
-    // never silently drop the user into HEX when (say) WAVE was the natural
-    // home for the file they just opened.
-    if (hasFile) {
-      const fmt = detectFormat(fileStore.get().bytes);
-      if (target === 'inspect' && fmt !== 'elf') target = defaultRouteForFile();
-      if (target === 'wave'    && fmt !== 'wav') target = defaultRouteForFile();
-      if (target === 'game'    && fmt !== 'gba') target = defaultRouteForFile();
+    // Re-gate against format-specific tabs. If the current tab isn't valid
+    // for the loaded file's kind, fall back to that file's natural landing.
+    if (hasFile && KIND_GATED[target] && KIND_GATED[target] !== kind) {
+      target = defaultRouteForFile();
     }
+
+    console.log('[scry/show] route=%o hasFile=%o kind=%o target=%o', route, hasFile, kind, target);
 
     if (target !== route) {
       router.go(target);
