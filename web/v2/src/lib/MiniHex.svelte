@@ -349,4 +349,20 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
+
+  @keyframes mh-pc-pulse {
+    0%, 100% { outline-color: var(--mint-deep); }
+    50%      { outline-color: transparent; }
+  }
+  :global(.mh-cell.mh-pc-byte), :global(.mh-char.mh-pc-byte) {
+    animation: mh-pc-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes mh-byte-pop {
+    0%  { transform: scale(1); }
+    40% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+  }
+  :global(.mh-cell.mh-selected), :global(.mh-char.mh-selected) {
+    animation: mh-byte-pop 200ms ease-out;
+  }
 </style>

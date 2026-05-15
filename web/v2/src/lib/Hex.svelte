@@ -492,4 +492,26 @@
   .d-v { color: var(--ink); text-transform: none; letter-spacing: 0.02em; }
   .d-v.strong { font-weight: 600; }
   .d-v.mint { color: var(--mint-deep); }
+
+  @keyframes pc-pulse {
+    0%, 100% { outline-color: var(--mint-deep); }
+    50%      { outline-color: transparent; }
+  }
+  .byte.pc-active, .char.pc-active {
+    outline: 2px solid var(--mint-deep);
+    outline-offset: -1px;
+    animation: pc-pulse 1.2s ease-in-out infinite;
+  }
+  .strip-col:hover {
+    background: var(--mint-deep);
+    box-shadow: 0 0 6px var(--mint-deep);
+  }
+  @keyframes byte-pop {
+    0%  { transform: scale(1); }
+    40% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+  }
+  .byte.sel, .char.sel {
+    animation: byte-pop 200ms ease-out;
+  }
 </style>
