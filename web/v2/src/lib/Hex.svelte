@@ -1,29 +1,37 @@
 <script>
-  // V2 HEX keeps the wasm-backed entropy strip, but rows are rendered as
-  // individual byte cells so the pane can inspect bytes and fields like v1.
+  // V2 HEX — virtualized hex viewer with DOM-pooled rows, keyboard nav,
+  // dual flash (row + cell), binary detail, and entropy tooltips.
+  import { onMount, onDestroy } from 'svelte';
   import { ensureWasm } from './wasm.js';
 
   let { bytes, format = 'unknown', jumpTo = null, followTarget = null } = $props();
 
-  let offset = $state(0);
-  const PAGE = 16 * 32;
+  const ROW_HEIGHT = 20;
+  const BYTES_PER_ROW = 16;
+  const OVERSCAN = 6;
+  const MAX_PHYSICAL_PX = 2_000_000;
+  const FLASH_MS = 400;
 
-  let rows = $state([]);
+  let scrollEl = $state(null);
+  let sizerEl = $state(null);
+  let viewportHeight = $state(400);
+  let scrollTopVal = $state(0);
+  let rowPool = [];
+  let geom = { physicalPx: 0, scale: 1 };
+  let viewportFrac = $state(0);
+
   let core = $state(null);
   let entropy = $state([]);
   let blockSize = $state(0);
   let gotoVal = $state('');
   let selectedOffset = $state(null);
   let hoveredField = $state(null);
-  let hoveredRow = $state(null);
 
   let flashOffset = $state(null);
   let flashUntil = $state(0);
   let flashTick = $state(0);
-  const FLASH_MS = 400;
 
-  let gridEl = $state(null);
-
+  // ─── Overlays ────────────────────────────────────
   const ELF32_HEADER_OVERLAY = [
     { offset: 0x00, size: 4, name: 'e_ident.magic', type: 'u32be', description: 'ELF magic (0x7F ELF)' },
     { offset: 0x04, size: 1, name: 'e_ident.class', type: 'u8', description: '1 = 32-bit, 2 = 64-bit' },
@@ -62,6 +70,7 @@
     { offset: 0x0BE, size: 2, name: 'reserved.tail', type: 'bytes' },
   ];
 
+  // ─── Helpers ─────────────────────────────────────
   function hex2(n) { return (n >>> 0).toString(16).padStart(2, '0').toUpperCase(); }
   function hex8(n) { return '0x' + (n >>> 0).toString(16).padStart(8, '0').toUpperCase(); }
   function asciiCh(n) { return (n >= 0x20 && n <= 0x7E) ? String.fromCharCode(n) : '.'; }
@@ -101,28 +110,281 @@
     return Array.from(bytes.subarray(f.offset, f.offset + f.size)).map(hex2).join(' ');
   }
 
-  function buildRows() {
-    if (!bytes) return [];
-    const end = Math.min(bytes.byteLength, offset + PAGE);
-    const out = [];
-    for (let rowOff = offset; rowOff < end; rowOff += 16) {
-      const rowEnd = Math.min(bytes.byteLength, rowOff + 16);
-      const cells = [];
-      const ascii = [];
-      for (let off = rowOff; off < rowEnd; off++) {
-        const f = fieldAt(off);
-        cells.push({ off, value: bytes[off], hex: hex2(bytes[off]), field: f, gap: off - rowOff === 7 ? 'wide' : '' });
-        ascii.push({ off, ch: asciiCh(bytes[off]), field: f });
-      }
-      out.push({ off: rowOff, cells, ascii });
+  // ─── Virtual geometry ────────────────────────────
+  function virtualGeometry(totalRows) {
+    const naturalPx = Math.max(0, totalRows * ROW_HEIGHT);
+    if (naturalPx <= MAX_PHYSICAL_PX) return { physicalPx: naturalPx, scale: 1 };
+    return { physicalPx: MAX_PHYSICAL_PX, scale: naturalPx / MAX_PHYSICAL_PX };
+  }
+
+  function visibleRange() {
+    const totalRows = Math.ceil((bytes?.length ?? 0) / BYTES_PER_ROW);
+    if (totalRows === 0) return { start: 0, end: 0, topPx: 0 };
+    const s = geom.scale;
+    const virtualScrollTop = scrollTopVal * s;
+    const visibleCount = Math.ceil(viewportHeight / ROW_HEIGHT) + OVERSCAN * 2;
+    const rawStart = Math.floor(virtualScrollTop / ROW_HEIGHT) - OVERSCAN;
+    const start = Math.max(0, rawStart);
+    const end = Math.min(totalRows, start + visibleCount);
+    let topPx;
+    if (s === 1) {
+      topPx = start * ROW_HEIGHT;
+    } else {
+      const remainder = virtualScrollTop - start * ROW_HEIGHT;
+      topPx = scrollTopVal - remainder / s;
     }
-    return out;
+    return { start, end, topPx };
+  }
+
+  function ensurePool(n) {
+    while (rowPool.length < n) {
+      const r = document.createElement('div');
+      r.className = 'hex-row';
+      r.style.position = 'absolute';
+      r.style.left = '0';
+      r.style.right = '0';
+      r.style.height = `${ROW_HEIGHT}px`;
+      rowPool.push(r);
+    }
+  }
+
+  function buildRowDOM(rowIdx) {
+    const startByte = rowIdx * BYTES_PER_ROW;
+    const endByte = Math.min(bytes.length, startByte + BYTES_PER_ROW);
+
+    const addr = document.createElement('span');
+    addr.className = 'addr';
+    addr.textContent = hex8(startByte);
+
+    const bytesSpan = document.createElement('span');
+    bytesSpan.className = 'bytes';
+    const asciiSpan = document.createElement('span');
+    asciiSpan.className = 'ascii';
+
+    for (let i = startByte; i < endByte; i++) {
+      const v = bytes[i];
+      const f = fieldAt(i);
+
+      const byteBtn = document.createElement('button');
+      byteBtn.type = 'button';
+      byteBtn.className = 'byte';
+      if (f) byteBtn.classList.add('ovr');
+      if (hoveredField && f === hoveredField) byteBtn.classList.add('hot');
+      if (selectedOffset === i) byteBtn.classList.add('sel');
+      byteBtn.dataset.fi = String(i);
+      byteBtn.textContent = hex2(v);
+
+      const charBtn = document.createElement('button');
+      charBtn.type = 'button';
+      charBtn.className = 'char';
+      if (f) charBtn.classList.add('ovr');
+      if (hoveredField && f === hoveredField) charBtn.classList.add('hot');
+      if (selectedOffset === i) charBtn.classList.add('sel');
+      charBtn.dataset.fi = String(i);
+      charBtn.textContent = asciiCh(v);
+
+      bytesSpan.appendChild(byteBtn);
+      asciiSpan.appendChild(charBtn);
+
+      if (i - startByte === 7) {
+        const mid = document.createElement('span');
+        mid.className = 'wide';
+        mid.textContent = ' ';
+        bytesSpan.appendChild(mid);
+      }
+      if (i < endByte - 1) {
+        bytesSpan.appendChild(document.createTextNode(' '));
+      }
+    }
+    return [addr, bytesSpan, asciiSpan];
   }
 
   function render() {
-    rows = buildRows();
+    if (!bytes || !sizerEl) return;
+    const totalRows = Math.ceil(bytes.length / BYTES_PER_ROW);
+    geom = virtualGeometry(totalRows);
+    sizerEl.style.height = `${geom.physicalPx}px`;
+
+    const range = visibleRange();
+    const count = range.end - range.start;
+    ensurePool(count);
+
+    for (let i = count; i < rowPool.length; i++) {
+      if (rowPool[i].parentNode) rowPool[i].remove();
+    }
+
+    for (let i = 0; i < count; i++) {
+      const rowIdx = range.start + i;
+      const node = rowPool[i];
+      node.style.top = `${range.topPx + i * ROW_HEIGHT}px`;
+      node.dataset.row = String(rowIdx);
+      node.dataset.rowOff = String(rowIdx * BYTES_PER_ROW);
+      node.replaceChildren(...buildRowDOM(rowIdx));
+      if (node.parentNode !== sizerEl) sizerEl.appendChild(node);
+    }
+    updateEntropyMarker();
   }
 
+  function updateEntropyMarker() {
+    if (bytes && bytes.length) {
+      const virtualY = scrollTopVal * (geom.scale || 1);
+      const firstByte = Math.floor(virtualY / ROW_HEIGHT) * BYTES_PER_ROW;
+      viewportFrac = Math.max(0, Math.min(1, firstByte / Math.max(1, bytes.length)));
+    } else {
+      viewportFrac = 0;
+    }
+  }
+
+  // ─── Scroll-to + flash ──────────────────────────
+  function scrollToOffset(o, flash = true) {
+    if (!bytes || !bytes.length || !scrollEl) return;
+    const clamped = Math.max(0, Math.min(bytes.length - 1, Number(o) | 0));
+    const targetRow = Math.floor(clamped / BYTES_PER_ROW);
+    const thirdOffset = Math.max(0, Math.floor(viewportHeight / 3));
+    const virtualTargetTop = targetRow * ROW_HEIGHT;
+    const top = Math.max(0, (virtualTargetTop - thirdOffset) / (geom.scale || 1));
+    try {
+      scrollEl.scrollTo({ top, behavior: 'smooth' });
+    } catch (_) {
+      scrollEl.scrollTop = top;
+    }
+    if (flash) {
+      flashOffset = targetRow * BYTES_PER_ROW;
+      flashUntil = performance.now() + FLASH_MS;
+      flashTick++;
+      requestAnimationFrame(() => requestAnimationFrame(doFlash));
+    }
+  }
+
+  function doFlash() {
+    if (flashOffset == null) return;
+    const startRow = Math.floor(flashOffset / BYTES_PER_ROW);
+    rowPool.forEach(node => {
+      const r = Number(node.dataset.row);
+      if (r === startRow) {
+        node.classList.remove('flash');
+        void node.offsetWidth;
+        node.classList.add('flash');
+        setTimeout(() => node.classList.remove('flash'), 480);
+      }
+    });
+    const endByte = flashOffset + BYTES_PER_ROW;
+    if (sizerEl) {
+      const cells = sizerEl.querySelectorAll('[data-fi]');
+      cells.forEach(cell => {
+        const fi = Number(cell.dataset.fi);
+        if (fi >= flashOffset && fi < endByte) {
+          cell.classList.remove('flash');
+          void cell.offsetWidth;
+          cell.classList.add('flash');
+          setTimeout(() => cell.classList.remove('flash'), 480);
+        }
+      });
+    }
+    flashOffset = null;
+  }
+
+  // ─── Keyboard nav ───────────────────────────────
+  function onKeydown(e) {
+    if (!bytes?.length) return;
+    const page = Math.max(1, Math.floor(viewportHeight / ROW_HEIGHT) - 2);
+    const stepRow = (rows) => {
+      const virtualY = scrollTopVal * (geom.scale || 1);
+      const newVirtualY = Math.max(0, virtualY + rows * ROW_HEIGHT);
+      scrollEl.scrollTop = newVirtualY / (geom.scale || 1);
+    };
+    if (e.key === 'PageDown') { e.preventDefault(); stepRow(page); }
+    else if (e.key === 'PageUp') { e.preventDefault(); stepRow(-page); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); stepRow(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); stepRow(-1); }
+    else if (e.key === 'Home') { e.preventDefault(); scrollEl.scrollTop = 0; }
+    else if (e.key === 'End') { e.preventDefault(); scrollEl.scrollTop = geom.physicalPx; }
+  }
+
+  // ─── Grid event handlers ────────────────────────
+  function onGridClick(e) {
+    const t = e.target.closest('[data-fi]');
+    if (!t) return;
+    selectedOffset = Number(t.dataset.fi);
+    render();
+  }
+
+  function onGridHover(e) {
+    const t = e.target.closest('.ovr');
+    if (!t) return;
+    const fi = Number(t.dataset.fi);
+    const f = fieldAt(fi);
+    if (f && f !== hoveredField) {
+      hoveredField = f;
+      render();
+    }
+  }
+
+  function onGridLeave() {
+    if (hoveredField) { hoveredField = null; render(); }
+  }
+
+  // ─── GOTO form ──────────────────────────────────
+  function gotoOffset(e) {
+    e.preventDefault();
+    let v = gotoVal.trim();
+    if (!v) return;
+    if (v.startsWith('0x') || v.startsWith('0X')) v = v.slice(2);
+    const n = parseInt(v, 16);
+    if (!Number.isFinite(n)) return;
+    scrollToOffset(n, true);
+  }
+
+  // ─── Entropy click ──────────────────────────────
+  function clickEntropy(e) {
+    if (!entropy.length || !bytes) return;
+    const strip = e.currentTarget;
+    const rect = strip.getBoundingClientRect();
+    const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const target = Math.floor(frac * bytes.length);
+    scrollToOffset(target, true);
+  }
+
+  // ─── Byte detail (with binary) ──────────────────
+  function byteDetail() {
+    if (!bytes || selectedOffset == null || selectedOffset < 0 || selectedOffset >= bytes.length) return null;
+    const v = bytes[selectedOffset];
+    const bin = v.toString(2).padStart(8, '0');
+    const u16 = selectedOffset + 1 < bytes.length ? (bytes[selectedOffset] | (bytes[selectedOffset + 1] << 8)) : null;
+    const u32 = selectedOffset + 3 < bytes.length
+      ? ((bytes[selectedOffset] | (bytes[selectedOffset + 1] << 8) | (bytes[selectedOffset + 2] << 16) | (bytes[selectedOffset + 3] << 24)) >>> 0)
+      : null;
+    const parts = [`OFF ${hex8(selectedOffset)}`, `BYTE 0x${hex2(v)} (${v})`, `b${bin}`, `ASCII '${asciiCh(v)}'`];
+    if (u16 !== null) parts.push(`U16LE 0x${u16.toString(16).toUpperCase().padStart(4, '0')}`);
+    if (u32 !== null) parts.push(`U32LE 0x${u32.toString(16).toUpperCase().padStart(8, '0')}`);
+    return parts.join(' \u00B7 ');
+  }
+
+  // ─── Mount / lifecycle ──────────────────────────
+  let scrollRaf = 0;
+  let ro;
+
+  onMount(() => {
+    ro = new ResizeObserver(() => {
+      viewportHeight = scrollEl.clientHeight;
+      render();
+    });
+    ro.observe(scrollEl);
+    scrollEl.addEventListener('scroll', () => {
+      if (scrollRaf) return;
+      scrollRaf = requestAnimationFrame(() => {
+        scrollRaf = 0;
+        scrollTopVal = scrollEl.scrollTop;
+        render();
+      });
+    }, { passive: true });
+    render();
+  });
+  onDestroy(() => { try { ro?.disconnect(); } catch (_) {} });
+
+  // ─── Effects ────────────────────────────────────
+
+  // WASM + entropy
   $effect(() => {
     let cancelled = false;
     ensureWasm().then((c) => {
@@ -136,53 +398,35 @@
     return () => { cancelled = true; };
   });
 
+  // Bytes changed
   $effect(() => {
     const b = bytes;
-    offset = 0;
+    if (scrollEl) scrollEl.scrollTop = 0;
+    scrollTopVal = 0;
     selectedOffset = null;
     hoveredField = null;
-    render();
+    rowPool = [];
     if (core) {
       blockSize = Math.max(64, Math.ceil((b?.length ?? 0) / 256));
       entropy = b ? core.entropy_blocks(b, blockSize) : [];
     }
+    render();
   });
 
+  // Format changed
   $effect(() => {
-    const f = format;
-    void f;
+    void format;
     render();
   });
 
-  function scrollToOffset(o, flash = true) {
-    if (!bytes || !bytes.length) return;
-    const clamped = Math.max(0, Math.min(bytes.length - 1, Number(o) | 0));
-    const rowStart = Math.floor(clamped / 16) * 16;
-    const pageStart = Math.floor(rowStart / PAGE) * PAGE;
-    offset = pageStart;
-    render();
-    if (flash) {
-      flashOffset = rowStart;
-      flashUntil = performance.now() + FLASH_MS;
-      flashTick++;
-    }
-    requestAnimationFrame(() => {
-      if (!gridEl) return;
-      const node = gridEl.querySelector(`[data-row-off="${rowStart}"]`);
-      if (!node) return;
-      const gridRect = gridEl.getBoundingClientRect();
-      const nodeRect = node.getBoundingClientRect();
-      const targetOffset = nodeRect.top - gridRect.top - gridRect.height / 3;
-      gridEl.scrollTo({ top: gridEl.scrollTop + targetOffset, behavior: 'smooth' });
-    });
-  }
-
+  // Jump-to from external
   $effect(() => {
     if (jumpTo == null) return;
     const target = typeof jumpTo === 'object' ? jumpTo.o : jumpTo;
     scrollToOffset(target, true);
   });
 
+  // Follow target (PC tracking)
   let lastFollowRow = -1;
   $effect(() => {
     const f = followTarget;
@@ -190,92 +434,26 @@
       lastFollowRow = -1;
       return;
     }
-    const row = Math.floor(f.offset / 16);
+    const row = Math.floor(f.offset / BYTES_PER_ROW);
     if (row === lastFollowRow) return;
     lastFollowRow = row;
     scrollToOffset(f.offset, false);
   });
-
-  $effect(() => {
-    if (flashTick === 0) return;
-    let raf = 0;
-    const loop = () => {
-      if (performance.now() >= flashUntil) {
-        flashOffset = null;
-        return;
-      }
-      flashTick = (flashTick + 1) & 0xfff;
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  });
-
-  function move(d) {
-    offset = Math.max(0, Math.min((bytes?.length ?? 0) - 1, offset + d));
-    offset = Math.floor(offset / 16) * 16;
-    render();
-  }
-
-  function gotoOffset(e) {
-    e.preventDefault();
-    let v = gotoVal.trim();
-    if (!v) return;
-    if (v.startsWith('0x') || v.startsWith('0X')) v = v.slice(2);
-    const n = parseInt(v, 16);
-    if (!Number.isFinite(n)) return;
-    scrollToOffset(n, true);
-  }
-
-  function clickEntropy(e) {
-    if (!entropy.length || !bytes) return;
-    const strip = e.currentTarget;
-    const rect = strip.getBoundingClientRect();
-    const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const target = Math.floor(frac * bytes.length);
-    scrollToOffset(target, true);
-  }
-
-  function byteDetail() {
-    if (!bytes || selectedOffset == null || selectedOffset < 0 || selectedOffset >= bytes.length) return null;
-    const v = bytes[selectedOffset];
-    const u16 = selectedOffset + 1 < bytes.length ? (bytes[selectedOffset] | (bytes[selectedOffset + 1] << 8)) : null;
-    const u32 = selectedOffset + 3 < bytes.length
-      ? ((bytes[selectedOffset] | (bytes[selectedOffset + 1] << 8) | (bytes[selectedOffset + 2] << 16) | (bytes[selectedOffset + 3] << 24)) >>> 0)
-      : null;
-    const parts = [`OFF ${hex8(selectedOffset)}`, `BYTE 0x${hex2(v)} (${v})`, `ASCII '${asciiCh(v)}'`];
-    if (u16 !== null) parts.push(`U16LE 0x${u16.toString(16).toUpperCase().padStart(4, '0')}`);
-    if (u32 !== null) parts.push(`U32LE 0x${u32.toString(16).toUpperCase().padStart(8, '0')}`);
-    return parts.join(' \u00B7 ');
-  }
-
-  let viewportFrac = $derived(bytes && bytes.length ? offset / bytes.length : 0);
-
-  function flashAlphaFor(rowOff, _tick) {
-    if (flashOffset == null || rowOff !== flashOffset) return 0;
-    const remaining = flashUntil - performance.now();
-    if (remaining <= 0) return 0;
-    return remaining / FLASH_MS;
-  }
 </script>
 
 <div class="wrap">
   <div class="bar">
     <span class="ti">[ HEX ]</span>
     <div class="ctl">
-      <button onclick={() => move(-PAGE)}>&#9664; PAGE</button>
-      <button onclick={() => move(-16)}>&#9650; ROW</button>
       <form class="goto" onsubmit={gotoOffset}>
-        <span class="at">@</span>
+        <span class="at">GOTO</span>
         <input
           type="text"
           bind:value={gotoVal}
-          placeholder={offset.toString(16).padStart(8, '0').toUpperCase()}
+          placeholder="0x00000000"
           aria-label="Jump to hex offset"
         />
       </form>
-      <button onclick={() => move(16)}>&#9660; ROW</button>
-      <button onclick={() => move(PAGE)}>PAGE &#9654;</button>
     </div>
   </div>
 
@@ -283,8 +461,11 @@
     <div class="strip-wrap">
       <span class="strip-label">ENTROPY</span>
       <div class="strip" onclick={clickEntropy} role="presentation" title="Click to jump">
-        {#each entropy as e}
-          <span class="strip-col" style="height: {Math.max(2, e * 100)}%; opacity: {0.35 + e * 0.65}"></span>
+        {#each entropy as e, i}
+          <span class="strip-col"
+            style="height: {Math.max(2, e * 100)}%; opacity: {0.35 + e * 0.65}"
+            title="block {i} \u00B7 offset 0x{(Math.floor(i * (bytes?.length ?? 0) / entropy.length)).toString(16).toUpperCase()} \u00B7 entropy {e.toFixed(1)} bits"
+          ></span>
         {/each}
         <span class="strip-cursor" style="left: {viewportFrac * 100}%"></span>
       </div>
@@ -292,50 +473,12 @@
     </div>
   {/if}
 
-  <div class="grid" bind:this={gridEl}>
-    {#each rows as r, i}
-      <div
-        class="hex-row"
-        role="presentation"
-        class:hover={hoveredRow === i}
-        class:flash={r.off === flashOffset}
-        data-row-off={r.off}
-        style={r.off === flashOffset ? `--flash-a: ${flashAlphaFor(r.off, flashTick)}` : ''}
-        onmouseenter={() => (hoveredRow = i)}
-        onmouseleave={() => (hoveredRow === i && (hoveredRow = null))}
-      >
-        <span class="addr">{hex8(r.off)}</span>
-        <span class="bytes">
-          {#each r.cells as c, ci}
-            <button
-              type="button"
-              class="byte"
-              class:ovr={!!c.field}
-              class:hot={hoveredField && c.field === hoveredField}
-              class:sel={selectedOffset === c.off}
-              title={c.field ? c.field.name : `offset ${hex8(c.off)}`}
-              onclick={() => (selectedOffset = c.off)}
-              onmouseenter={() => (hoveredField = c.field)}
-              onmouseleave={() => (hoveredField === c.field && (hoveredField = null))}
-            >{c.hex}</button>{#if ci < r.cells.length - 1}<span class:wide={c.gap === 'wide'}> </span>{/if}
-          {/each}
-        </span>
-        <span class="ascii">
-          {#each r.ascii as c}
-            <button
-              type="button"
-              class="char"
-              class:ovr={!!c.field}
-              class:hot={hoveredField && c.field === hoveredField}
-              class:sel={selectedOffset === c.off}
-              onclick={() => (selectedOffset = c.off)}
-              onmouseenter={() => (hoveredField = c.field)}
-              onmouseleave={() => (hoveredField === c.field && (hoveredField = null))}
-            >{c.ch}</button>
-          {/each}
-        </span>
-      </div>
-    {/each}
+  <div class="grid" bind:this={scrollEl} tabindex="0"
+    onkeydown={onKeydown}
+    onclick={onGridClick}
+    onmouseover={onGridHover}
+    onmouseleave={onGridLeave}>
+    <div class="sizer" bind:this={sizerEl}></div>
   </div>
 
   <div class="detail">
@@ -416,6 +559,10 @@
     min-width: 1px;
     background: var(--mint-deep);
   }
+  .strip-col:hover {
+    background: var(--mint-deep);
+    box-shadow: 0 0 6px var(--mint-deep);
+  }
   .strip-cursor {
     position: absolute;
     top: 0;
@@ -430,7 +577,8 @@
 
   .grid {
     flex: 1;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
     min-height: 0;
     border: 1px solid var(--rule);
     background: var(--paper);
@@ -438,8 +586,13 @@
     font-size: 11px;
     line-height: 20px;
     font-family: var(--mono);
+    position: relative;
   }
-  .hex-row {
+  .grid:focus { outline: 2px solid var(--mint-deep); outline-offset: -2px; }
+
+  .sizer { position: relative; width: 100%; }
+
+  :global(.hex-row) {
     display: grid;
     grid-template-columns: 100px 1fr 170px;
     gap: 22px;
@@ -449,13 +602,21 @@
     white-space: nowrap;
     transition: background 80ms ease;
   }
-  .hex-row.hover { background: var(--tint-row); }
-  .hex-row.flash {
-    background: color-mix(in srgb, var(--tint-drop) calc(var(--flash-a, 0) * 100%), transparent);
+  :global(.hex-row:hover) { background: var(--tint-row); }
+  :global(.hex-row.flash) {
+    background: var(--tint-drop);
+    transition: background 400ms ease;
   }
-  .addr { color: var(--muted); }
-  .bytes { letter-spacing: 0.04em; }
-  .byte, .char {
+
+  @keyframes hex-cell-flash {
+    from { background: var(--tint-drop); }
+    to   { background: transparent; }
+  }
+
+  :global(.hex-row .addr) { color: var(--muted); }
+  :global(.hex-row .bytes) { letter-spacing: 0.04em; }
+  :global(.hex-row .byte),
+  :global(.hex-row .char) {
     appearance: none;
     border: 0;
     background: transparent;
@@ -466,12 +627,26 @@
     padding: 0 1px;
     cursor: pointer;
   }
-  .byte.ovr, .char.ovr { background: var(--mint-pale); }
-  .byte.hot, .char.hot, .byte:hover, .char:hover { background: var(--mint); color: var(--ink); }
-  .byte.sel, .char.sel { background: var(--mint-deep); color: var(--paper); }
-  .ascii { color: var(--muted); }
-  .ascii .char.ovr { color: var(--ink); }
-  .wide { display: inline-block; width: 8px; }
+  :global(.hex-row .byte.ovr),
+  :global(.hex-row .char.ovr) { background: var(--mint-pale); }
+  :global(.hex-row .byte.hot),
+  :global(.hex-row .char.hot),
+  :global(.hex-row .byte:hover),
+  :global(.hex-row .char:hover) { background: var(--mint); color: var(--ink); }
+  :global(.hex-row .byte.sel),
+  :global(.hex-row .char.sel) { background: var(--mint-deep); color: var(--paper); }
+  :global(.hex-row .byte.flash),
+  :global(.hex-row .char.flash) {
+    animation: hex-cell-flash 400ms ease forwards;
+  }
+  :global(.hex-row .ascii) { color: var(--muted); }
+  :global(.hex-row .ascii .char.ovr) { color: var(--ink); }
+  :global(.hex-row .wide) { display: inline-block; width: 8px; }
+
+  :global(.hex-row .byte.sel),
+  :global(.hex-row .char.sel) {
+    animation: byte-pop 200ms ease-out;
+  }
 
   .detail {
     min-height: 48px;
@@ -497,21 +672,15 @@
     0%, 100% { outline-color: var(--mint-deep); }
     50%      { outline-color: transparent; }
   }
-  .byte.pc-active, .char.pc-active {
+  :global(.hex-row .byte.pc-active),
+  :global(.hex-row .char.pc-active) {
     outline: 2px solid var(--mint-deep);
     outline-offset: -1px;
     animation: pc-pulse 1.2s ease-in-out infinite;
-  }
-  .strip-col:hover {
-    background: var(--mint-deep);
-    box-shadow: 0 0 6px var(--mint-deep);
   }
   @keyframes byte-pop {
     0%  { transform: scale(1); }
     40% { transform: scale(1.3); }
     100% { transform: scale(1); }
-  }
-  .byte.sel, .char.sel {
-    animation: byte-pop 200ms ease-out;
   }
 </style>
