@@ -91,7 +91,9 @@
     return h;
   }
 
+  let onfileGeneration = 0;
   async function onfile({ name, bytes }) {
+    const gen = ++onfileGeneration;
     file = { name, bytes };
     error = '';
     report = null;
@@ -104,6 +106,7 @@
     parsing = true;
     try {
       const core = await ensureWasm();
+      if (gen !== onfileGeneration) return;
       format = core.detect_format(bytes);
       if (format === 'elf') {
         report = core.parse_elf(bytes);
@@ -118,19 +121,17 @@
         view = 'hex';
       }
 
+      if (gen !== onfileGeneration) return;
       if (format === 'elf') {
         strings = core.extract_strings(bytes, 4);
       }
-      // Keep load-to-view fast for large carts. The full entropy strip still
-      // computes in HEX when requested; the header summary only needs a
-      // sampled estimate.
       if (format !== 'gba') {
         avgEntropy = sampledEntropyBits(bytes);
       }
     } catch (e) {
-      error = String(e);
+      if (gen === onfileGeneration) error = String(e);
     } finally {
-      parsing = false;
+      if (gen === onfileGeneration) parsing = false;
     }
   }
 

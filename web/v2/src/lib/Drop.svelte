@@ -32,6 +32,7 @@
 
   function onDrop(e) {
     e.preventDefault();
+    e.stopPropagation();
     hover = false;
     const f = e.dataTransfer?.files?.[0];
     if (f) accept(f);
