@@ -482,11 +482,12 @@
     </div>
   {/if}
 
-  <div class="grid" bind:this={scrollEl} tabindex="0"
+  <div class="grid" bind:this={scrollEl} tabindex="0" role="grid"
     onkeydown={onKeydown}
     onclick={onGridClick}
     onmouseover={onGridHover}
-    onmouseleave={onGridLeave}>
+    onmouseleave={onGridLeave}
+    onfocus={onGridHover}>
     <div class="sizer" bind:this={sizerEl}></div>
   </div>
 
