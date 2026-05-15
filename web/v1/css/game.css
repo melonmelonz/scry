@@ -258,9 +258,9 @@
 .mh-sizer { position: relative; width: 100%; }
 .mh-row {
   display: grid;
-  grid-template-columns: 90px 1fr 18ch;
-  gap: 14px;
-  padding: 0 10px;
+  grid-template-columns: 72px 1fr 16ch;
+  gap: 8px;
+  padding: 0 8px;
   white-space: nowrap;
 }
 .mh-row .mh-addr { color: var(--muted); }
