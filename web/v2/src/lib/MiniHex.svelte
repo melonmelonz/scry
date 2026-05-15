@@ -370,7 +370,7 @@
 
   .mh-scroll {
     flex: 1; min-height: 0;
-    overflow-y: auto; overflow-x: auto;
+    overflow-y: auto; overflow-x: hidden;
     position: relative;
     padding: 6px 0;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -386,9 +386,9 @@
     white-space: nowrap;
   }
   :global(.mh-row .mh-addr) { color: var(--muted); }
-  :global(.mh-row .mh-bytes) { letter-spacing: 0.04em; }
+  :global(.mh-row .mh-bytes) { letter-spacing: 0; }
   :global(.mh-row .mh-ascii) { color: var(--muted); }
-  :global(.mh-cell), :global(.mh-char) { cursor: pointer; padding: 0 1px; }
+  :global(.mh-cell), :global(.mh-char) { cursor: pointer; padding: 0; }
   :global(.mh-cell:hover), :global(.mh-char:hover) { background: var(--mint); color: var(--ink); }
   :global(.mh-cell.mh-selected), :global(.mh-char.mh-selected) {
     background: var(--mint-deep);

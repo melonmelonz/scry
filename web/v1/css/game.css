@@ -248,7 +248,7 @@
 
 .mh-scroll {
   flex: 1; min-height: 0;
-  overflow-y: auto; overflow-x: auto;
+  overflow-y: auto; overflow-x: hidden;
   position: relative;
   padding: 6px 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -264,9 +264,9 @@
   white-space: nowrap;
 }
 .mh-row .mh-addr { color: var(--muted); }
-.mh-row .mh-bytes { letter-spacing: 0.04em; }
+.mh-row .mh-bytes { letter-spacing: 0; }
 .mh-row .mh-ascii { color: var(--muted); }
-.mh-cell, .mh-char { cursor: pointer; padding: 0 1px; }
+.mh-cell, .mh-char { cursor: pointer; padding: 0; }
 .mh-cell:hover, .mh-char:hover { background: var(--mint); color: var(--ink); }
 .mh-cell.mh-selected, .mh-char.mh-selected {
   background: var(--mint-deep);
