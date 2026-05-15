@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>scry — tutorial</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23f6f1e8'/%3E%3Crect y='6' width='16' height='4' fill='%23a8e0c8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="tokens.css">
+<style>
+html { color-scheme: light dark; accent-color: var(--mint-deep); }
+::selection { background: var(--mint-deep); color: var(--paper); }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--mono);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  max-width: 740px;
+  margin: 0 auto;
+  padding: 40px 28px 80px;
+}
+
+a { color: var(--mint-deep); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.back {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  display: inline-block;
+  margin-bottom: 32px;
+}
+
+h1 {
+  font-size: var(--fs-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+h1::before { content: '\25C6 '; color: var(--mint-deep); font-size: 24px; }
+
+.subtitle {
+  font-size: var(--fs-body);
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  margin-bottom: 40px;
+}
+
+h2 {
+  font-size: var(--fs-h3);
+  font-weight: 600;
+  margin-top: 40px;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rule);
+}
+
+h3 {
+  font-size: var(--fs-h4);
+  font-weight: 600;
+  margin-top: 28px;
+  margin-bottom: 8px;
+  color: var(--mint-deep);
+}
+
+p { margin-bottom: 12px; }
+
+.step {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+.step-num {
+  color: var(--mint-deep);
+  font-weight: 600;
+  font-size: var(--fs-body-2);
+  margin-right: 8px;
+}
+
+.key {
+  display: inline-block;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 1px 6px;
+  font-size: 11px;
+  font-family: inherit;
+  min-width: 22px;
+  text-align: center;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  font-size: 11px;
+}
+th {
+  text-align: left;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ink);
+}
+td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--grey);
+  vertical-align: top;
+}
+
+.tab-name {
+  color: var(--mint-deep);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+ul { padding-left: 20px; margin-bottom: 12px; }
+li { margin-bottom: 4px; }
+li::marker { color: var(--mint-deep); }
+
+.note {
+  background: var(--mint-pale);
+  border-left: 3px solid var(--mint-deep);
+  padding: 10px 14px;
+  margin: 16px 0;
+  font-size: 11px;
+}
+
+.formats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.format-card {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  padding: 12px 16px;
+}
+.format-card strong {
+  display: block;
+  font-size: var(--fs-body-2);
+  margin-bottom: 4px;
+}
+.format-card span {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+
+@media (max-width: 560px) {
+  body { padding: 24px 16px 60px; }
+  h1 { font-size: 22px; }
+  .formats { grid-template-columns: 1fr; }
+}
+</style>
+<script>
+  try {
+    var t = localStorage.getItem('scry-theme');
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+</script>
+</head>
+<body>
+
+<a class="back" href="/">&larr; back to scry</a>
+
+<h1>tutorial</h1>
+<p class="subtitle">Everything runs locally in your browser. No files are uploaded. No login required.</p>
+
+<h2>Getting started</h2>
+
+<div class="step">
+  <span class="step-num">1.</span>
+  Drop a file onto the workbench, or click the drop zone to browse.
+  Scry auto-detects the format and opens the right view.
+</div>
+<div class="step">
+  <span class="step-num">2.</span>
+  Use the tab bar to switch between views. Tabs light up based on what
+  your file supports (ELF binaries unlock INSPECT and DISASM; GBA ROMs
+  unlock CART and GAME; WAV files unlock WAVE).
+</div>
+<div class="step">
+  <span class="step-num">3.</span>
+  The HEX tab is always available. Click on a section, segment, or
+  string in INSPECT and scry jumps you straight to that offset in HEX.
+</div>
+
+<h2>Supported formats</h2>
+
+<div class="formats">
+  <div class="format-card">
+    <strong>ELF</strong>
+    <span>RISC-V 32-bit executables, objects, shared libs. Full header, section, segment, symbol, and string inspection.</span>
+  </div>
+  <div class="format-card">
+    <strong>GBA</strong>
+    <span>Game Boy Advance ROMs (.gba). Header decode + built-in emulator powered by a modernized gbajs2 fork.</span>
+  </div>
+  <div class="format-card">
+    <strong>WAV</strong>
+    <span>RIFF/WAVE audio. Waveform visualization and playback with seek.</span>
+  </div>
+  <div class="format-card">
+    <strong>Raw binary</strong>
+    <span>Anything else opens in HEX with entropy analysis. Every byte, every time.</span>
+  </div>
+</div>
+
+<h2>Tab reference</h2>
+
+<table>
+  <thead>
+    <tr><th>Tab</th><th>Purpose</th><th>Requires</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="tab-name">INSPECT</td>
+      <td>ELF header summary, sections, segments, symbols, and extracted strings. Click any row to jump to its offset in HEX.</td>
+      <td>ELF</td>
+    </tr>
+    <tr>
+      <td class="tab-name">HEX</td>
+      <td>Virtualized hex viewer. Scroll or PgUp/PgDn to navigate. Type a hex offset in the jump bar to seek. Click the strip on the right to jump by position.</td>
+      <td>Any file</td>
+    </tr>
+    <tr>
+      <td class="tab-name">DISASM</td>
+      <td>RV32IMA disassembly. PgUp/PgDn/Home/End to navigate. Use GOTO to jump to an address.</td>
+      <td>ELF</td>
+    </tr>
+    <tr>
+      <td class="tab-name">WAVE</td>
+      <td>Waveform display and audio playback. Click the canvas to seek.</td>
+      <td>WAV</td>
+    </tr>
+    <tr>
+      <td class="tab-name">CART</td>
+      <td>GBA cartridge header decoded by Rust/WASM: title, game code, maker, entry point.</td>
+      <td>GBA</td>
+    </tr>
+    <tr>
+      <td class="tab-name">GAME</td>
+      <td>Play the GBA ROM in-browser. See controls below.</td>
+      <td>GBA</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>GBA emulator controls</h2>
+
+<h3>Keyboard</h3>
+<table>
+  <thead>
+    <tr><th>GBA button</th><th>Key</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>D-Pad</td><td><span class="key">&uarr;</span> <span class="key">&darr;</span> <span class="key">&larr;</span> <span class="key">&rarr;</span></td></tr>
+    <tr><td>A</td><td><span class="key">Z</span></td></tr>
+    <tr><td>B</td><td><span class="key">X</span></td></tr>
+    <tr><td>L</td><td><span class="key">A</span></td></tr>
+    <tr><td>R</td><td><span class="key">S</span></td></tr>
+    <tr><td>Start</td><td><span class="key">Enter</span></td></tr>
+    <tr><td>Select</td><td><span class="key">\</span></td></tr>
+  </tbody>
+</table>
+
+<h3>Gamepad</h3>
+<p>
+  Standard gamepad layout works automatically. D-pad, face buttons (A/B),
+  shoulder buttons (L/R), Start, and Select all map to the standard
+  Gamepad API button indices.
+</p>
+
+<h2>V1 vs V2</h2>
+
+<p>
+  Scry ships two engines. Use the mode selector in the top bar to switch:
+</p>
+<ul>
+  <li><strong>V1 (PURE)</strong> — vanilla JavaScript. The original engine. Includes EMU and TRACE tabs for RV32 emulation and instruction tracing.</li>
+  <li><strong>V2 (RUST/WASM)</strong> — parsing and analysis done in Rust compiled to WebAssembly. Faster, more precise, and the active development target.</li>
+</ul>
+
+<div class="note">
+  EMU and TRACE are currently V1-only. V2 ports are in progress.
+</div>
+
+<h2>Privacy</h2>
+
+<p>
+  Scry processes everything locally in your browser tab. No files touch a
+  server. No data is uploaded. No login. No telemetry. Save data for the
+  GBA emulator is stored in your browser's localStorage and never leaves
+  your machine.
+</p>
+
+</body>
+</html>

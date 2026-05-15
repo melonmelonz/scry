@@ -1,10 +1,31 @@
+GBA.js — Upstream Reference
+======
+
+This file preserves the original project README for attribution and
+historical context. The vendored engine in this directory is based on
+our **modernized fork** at
+<https://github.com/melonmelonz/gbajs2>, which itself descends from:
+
+- **Original** (archived, 2012-2013): <https://github.com/endrift/gbajs> by Jeffrey Pfau
+- **Community fork** (2020): <https://github.com/andychase/gbajs2> by Andrew Chase
+
+The original library was written for a ~2013 browser landscape (Safari 6,
+Chrome 22, Firefox 25). Many of the APIs it relied on have since been
+deprecated or removed entirely. Our fork modernizes the codebase for
+current browsers while preserving every bit of the original emulation
+logic. See `NOTICE.md` in this directory for a detailed changelog.
+
+---
+
+**Original README follows (for reference):**
+
 GBA.js
 ======
-**Version 1.1-git — Copyright © 2012 – 2013 Jeffrey Pfau**
+**Version 1.1-git — Copyright (c) 2012-2013 Jeffrey Pfau**
 
 GBA.js is a Game Boy Advance emulator written from scratch to employ HTML5 technologies like Canvas and Web Audio. It uses no plugins, and is designed to run on cutting edge web browsers. It is hosted [on GitHub](https://github.com/endrift/gbajs) and is made available under the 2-clause BSD license. The most recent version can be found at [http://endrift.github.io/gbajs/](http://endrift.github.io/gbajs/).
 
-## Browser Compatibility
+## Browser Compatibility (circa 2013)
 The current version of GBA.js is known to work in the following web browsers:
 
 * Safari 6.0 or newer
@@ -50,7 +71,7 @@ Features that may be implemented in the future include:
 * Support for gamepaks that have other sensors (e.g. WarioWare Twisted!, Boktai)
 
 ## License
-Copyright © 2012 – 2013, Jeffrey Pfau
+Copyright (c) 2012-2013, Jeffrey Pfau
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
