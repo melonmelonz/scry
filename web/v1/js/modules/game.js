@@ -28,6 +28,30 @@ function cartMetaText(bytes) {
   return `"${title}" \u00B7 ${code} \u00B7 ${fmtBytes(bytes.byteLength)}`;
 }
 
+function detectLandmarks(bytes) {
+  const marks = [];
+  if (bytes.byteLength < 0xC0) return marks;
+  const branchWord = (bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24)) >>> 0;
+  if ((branchWord >>> 24) === 0xEA) {
+    let offset24 = branchWord & 0x00FFFFFF;
+    if (offset24 & 0x800000) offset24 |= 0xFF000000;
+    const target = (0x00 + 8 + (offset24 << 2)) >>> 0;
+    if (target < bytes.byteLength && target > 0xC0) {
+      marks.push({ off: target, label: 'ENTRY', desc: 'Code entry point (from branch at 0x00)' });
+    }
+  }
+  marks.push({ off: 0x00, label: 'BRANCH', desc: 'ARM branch instruction' });
+  marks.push({ off: 0x04, label: 'LOGO', desc: 'Nintendo logo bitmap (156 bytes)' });
+  marks.push({ off: 0xA0, label: 'HEADER', desc: 'Cartridge header (title, code, checksum)' });
+  marks.push({ off: 0xC0, label: 'POST-HDR', desc: 'First byte after the header' });
+  marks.sort((a, b) => {
+    if (a.label === 'ENTRY') return -1;
+    if (b.label === 'ENTRY') return 1;
+    return a.off - b.off;
+  });
+  return marks;
+}
+
 export function createGame() {
   let gba = null;
   let currentBytes = null;
@@ -70,7 +94,11 @@ export function createGame() {
 
   const canvasWrap = el('div', { class: 'g-canvas-wrap' }, [canvas]);
   const controls   = el('div', { class: 'g-controls' }, [playBtn, pauseBtn, resetBtn, followBtn, statusEl, hintEl]);
-  const gLeft      = el('div', { class: 'g-left' }, [canvasWrap, controls]);
+
+  const landmarksHost = el('div', { class: 'g-landmarks' });
+  const landmarksTitle = el('span', { class: 'g-landmarks-title', text: 'LANDMARKS' });
+
+  const gLeft      = el('div', { class: 'g-left' }, [canvasWrap, controls, landmarksHost]);
 
   // ── right: PC bar + mini-hex ──────────────────────────────────────────
   const subTitle = el('span', { class: 'g-sub-title', text: '[ ROM / INSPECTOR ]' });
@@ -168,6 +196,29 @@ export function createGame() {
       el('div', { class: 'g-trail-title', text: 'RECENT CART PC' }),
       ...rows,
     ]);
+  }
+
+  function renderLandmarks() {
+    if (!currentBytes) {
+      replaceChildren(landmarksHost, []);
+      return;
+    }
+    const marks = detectLandmarks(currentBytes);
+    const buttons = marks.map(m => {
+      const b = el('button', {
+        class: 'g-lm-btn', type: 'button',
+        title: m.desc,
+      }, [
+        el('span', { class: 'g-lm-label', text: m.label }),
+        el('span', { class: 'g-lm-off', text: hex8(m.off) }),
+      ]);
+      b.addEventListener('click', () => {
+        miniHex.jumpTo(m.off);
+        gotoIn('hex', m.off, m.label === 'ENTRY' ? 4 : 1);
+      });
+      return b;
+    });
+    replaceChildren(landmarksHost, [landmarksTitle, ...buttons]);
   }
 
   function handleMiniHexClick(off) {
@@ -322,6 +373,7 @@ export function createGame() {
       setStatus('idle');
       refreshSubHint();
       renderTrail();
+      renderLandmarks();
       clearHint('game');
       publishPc();
       return;
@@ -337,6 +389,7 @@ export function createGame() {
       setStatus('not a GBA cart');
       refreshSubHint();
       renderTrail();
+      renderLandmarks();
       publishPc();
       return;
     }
@@ -349,6 +402,7 @@ export function createGame() {
     gMeta.textContent = cartMetaText(bytes);
     miniHex.setBytes(bytes);
     miniHex.jumpTo(0xA0);
+    renderLandmarks();
     setStatus('cart ready \u00B7 click PLAY');
     refreshSubHint();
     renderTrail();

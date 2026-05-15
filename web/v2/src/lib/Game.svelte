@@ -48,6 +48,32 @@
     return '0x' + (n >>> 0).toString(16).toUpperCase().padStart(8, '0');
   }
 
+  function detectLandmarks(b) {
+    const marks = [];
+    if (!b || b.byteLength < 0xC0) return marks;
+    const branchWord = (b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24)) >>> 0;
+    if ((branchWord >>> 24) === 0xEA) {
+      let offset24 = branchWord & 0x00FFFFFF;
+      if (offset24 & 0x800000) offset24 |= 0xFF000000;
+      const target = (0x00 + 8 + (offset24 << 2)) >>> 0;
+      if (target < b.byteLength && target > 0xC0) {
+        marks.push({ off: target, label: 'ENTRY', desc: 'Code entry point (from branch at 0x00)' });
+      }
+    }
+    marks.push({ off: 0x00, label: 'BRANCH', desc: 'ARM branch instruction' });
+    marks.push({ off: 0x04, label: 'LOGO', desc: 'Nintendo logo bitmap (156 bytes)' });
+    marks.push({ off: 0xA0, label: 'HEADER', desc: 'Cartridge header (title, code, checksum)' });
+    marks.push({ off: 0xC0, label: 'POST-HDR', desc: 'First byte after the header' });
+    marks.sort((a, b) => {
+      if (a.label === 'ENTRY') return -1;
+      if (b.label === 'ENTRY') return 1;
+      return a.off - b.off;
+    });
+    return marks;
+  }
+
+  let landmarks = $derived(detectLandmarks(bytes));
+
   function publishPc() {
     onPcUpdate?.({
       follow,
@@ -293,6 +319,18 @@
         <span class="g-status">{status}</span>
         <span class="g-hint">arrows = D-pad &middot; Z/X = A/B &middot; Enter = Start</span>
       </div>
+      {#if landmarks.length}
+        <div class="g-landmarks">
+          <span class="g-landmarks-title">LANDMARKS</span>
+          {#each landmarks as m}
+            <button class="g-lm-btn" type="button" title={m.desc}
+              onclick={() => { cursor = m.off; }}>
+              <span class="g-lm-label">{m.label}</span>
+              <span class="g-lm-off">{hex8(m.off)}</span>
+            </button>
+          {/each}
+        </div>
+      {/if}
     </div>
 
     <div class="g-right">
@@ -531,4 +569,36 @@
     .g-wrap { padding: 0 14px 14px; }
     .g-hint { display: none; }
   }
+
+  .g-landmarks {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 0 0;
+    flex-wrap: wrap;
+  }
+  .g-landmarks-title {
+    font-size: 8px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-right: 4px;
+  }
+  .g-lm-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: inherit;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mint-deep);
+    background: transparent;
+    border: 1px solid var(--rule);
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease;
+  }
+  .g-lm-btn:hover {
+    background: var(--mint-pale);
+    border-color: var(--mint-deep);
+  }
+  .g-lm-label { font-weight: 600; }
+  .g-lm-off { color: var(--muted); font-size: 8px; }
 </style>
