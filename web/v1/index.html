@@ -46,29 +46,29 @@
 <body>
 <div id="app"></div>
 <!-- Vendored gbajs2 (BSD-2, endrift + andychase) — see
-     vendor/gbajs/NOTICE.md. Classic <script> tags because gbajs is
+     engines/gbajs/NOTICE.md. Classic <script> tags because gbajs is
      non-module and registers globals (GameBoyAdvance, biosBin, etc.)
      that the GAME module reads. Load order mirrors upstream's
      index.html. biosbin.js bakes the 220-byte HLE BIOS into a global
      `biosBin` ArrayBuffer so the emulator boots synchronously. -->
-<script src="vendor/gbajs/js/util.js"></script>
-<script src="vendor/gbajs/js/core.js"></script>
-<script src="vendor/gbajs/js/arm.js"></script>
-<script src="vendor/gbajs/js/thumb.js"></script>
-<script src="vendor/gbajs/js/mmu.js"></script>
-<script src="vendor/gbajs/js/io.js"></script>
-<script src="vendor/gbajs/js/audio.js"></script>
-<script src="vendor/gbajs/js/video.js"></script>
-<script src="vendor/gbajs/js/video/proxy.js"></script>
-<script src="vendor/gbajs/js/video/software.js"></script>
-<script src="vendor/gbajs/js/irq.js"></script>
-<script src="vendor/gbajs/js/keypad.js"></script>
-<script src="vendor/gbajs/js/sio.js"></script>
-<script src="vendor/gbajs/js/savedata.js"></script>
-<script src="vendor/gbajs/js/gpio.js"></script>
-<script src="vendor/gbajs/js/gba.js"></script>
-<script src="vendor/gbajs/resources/xhr.js"></script>
-<script src="vendor/gbajs/resources/biosbin.js"></script>
+<script src="engines/gbajs/js/util.js"></script>
+<script src="engines/gbajs/js/core.js"></script>
+<script src="engines/gbajs/js/arm.js"></script>
+<script src="engines/gbajs/js/thumb.js"></script>
+<script src="engines/gbajs/js/mmu.js"></script>
+<script src="engines/gbajs/js/io.js"></script>
+<script src="engines/gbajs/js/audio.js"></script>
+<script src="engines/gbajs/js/video.js"></script>
+<script src="engines/gbajs/js/video/proxy.js"></script>
+<script src="engines/gbajs/js/video/software.js"></script>
+<script src="engines/gbajs/js/irq.js"></script>
+<script src="engines/gbajs/js/keypad.js"></script>
+<script src="engines/gbajs/js/sio.js"></script>
+<script src="engines/gbajs/js/savedata.js"></script>
+<script src="engines/gbajs/js/gpio.js"></script>
+<script src="engines/gbajs/js/gba.js"></script>
+<script src="engines/gbajs/resources/xhr.js"></script>
+<script src="engines/gbajs/resources/biosbin.js"></script>
 <!-- gbajs2 modernized everything to `class` declarations and a top-level
      `let biosBin`. Those bindings live in the shared classic-script
      lexical scope but are NOT window properties, so an ES module can't
