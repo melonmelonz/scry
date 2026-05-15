@@ -783,11 +783,15 @@ for (const s of samples) {
   console.log(`wrote ${s.name}  (${s.insns} insns, ${s.bytes.byteLength} bytes) - ${s.desc}`);
 }
 
-// Manifest for the in-app picker.
-const manifest = samples.map(s => ({
-  file: s.name,
-  desc: s.desc,
-  insns: s.insns
-}));
+// Manifest for the in-app picker. Includes pre-existing binaries that
+// aren't built by this script (e.g. the GBA cart dump).
+const EXTRA_MANIFEST = [
+  { file: 'demo-pokemon-emerald.gba', desc: 'GBA cart - Pokemon Emerald', insns: 0 },
+];
+
+const manifest = [
+  ...samples.map(s => ({ file: s.name, desc: s.desc, insns: s.insns })),
+  ...EXTRA_MANIFEST,
+];
 writeFileSync(join(OUTDIR, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
 console.log(`wrote manifest.json (${manifest.length} entries)`);
