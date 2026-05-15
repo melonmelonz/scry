@@ -33,10 +33,5 @@
     "file": "demo-sine-sweep.wav",
     "desc": "Sine sweep 220Hz->880Hz, 1.5s mono PCM",
     "insns": 0
-  },
-  {
-    "file": "demo-pokemon-emerald.gba",
-    "desc": "GBA cart - Pokemon Emerald (Penn's dump, demo only)",
-    "insns": 0
   }
 ]

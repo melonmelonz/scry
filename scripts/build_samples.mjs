@@ -704,29 +704,49 @@ function buildSineSweepWav(seconds = 1.5, sampleRate = 8000, f0 = 220, f1 = 880)
 // --- emit ---
 mkdirSync(OUTDIR, { recursive: true });
 
+// Helper: build a rich ELF with .text section and symbols from an
+// assembled program. Labels in the source become FUNC symbols.
+function richFromAssembly(prog, extraSymbols = []) {
+  const text = assemble(prog);
+  // Extract labels from the program to create symbols.
+  const symbols = [];
+  let pc = 0;
+  for (const line of prog) {
+    if (typeof line === 'string' && line.endsWith(':')) {
+      const name = line.slice(0, -1);
+      symbols.push({ name, value: ENTRY + pc, size: 4, sectionName: '.text', type: 2 });
+    } else {
+      pc += 4;
+    }
+  }
+  symbols.push({ name: '_start', value: ENTRY, size: text.length * 4, sectionName: '.text', type: 2 });
+  symbols.push(...extraSymbols);
+  return buildElfRich({ text, rodata: new Uint8Array(0), symbols });
+}
+
 const samples = [
   {
     name: 'demo-fib10.elf',
     desc: 'Fibonacci(10) -> a2 = 55',
-    bytes: buildElf(assemble(fib)),
+    bytes: richFromAssembly(fib),
     insns: fib.filter(l => Array.isArray(l)).length
   },
   {
     name: 'demo-spi-jedec.elf',
     desc: 'SPI JEDEC ID read (4 bytes via MMIO)',
-    bytes: buildElf(assemble(spi)),
-    insns: spi.length
+    bytes: richFromAssembly(spi),
+    insns: spi.filter(l => Array.isArray(l)).length
   },
   {
     name: 'demo-i2c-scan.elf',
     desc: 'I2C bus scan 0x08..0x10',
-    bytes: buildElf(assemble(i2cscan)),
+    bytes: richFromAssembly(i2cscan),
     insns: i2cscan.filter(l => Array.isArray(l)).length
   },
   {
     name: 'demo-memcpy.elf',
     desc: 'Memcpy loop (registers + RAM, no MMIO)',
-    bytes: buildElf(assemble(memcpy)),
+    bytes: richFromAssembly(memcpy),
     insns: memcpy.filter(l => Array.isArray(l)).length
   },
   {
