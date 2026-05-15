@@ -8,6 +8,7 @@
   import Wave from './lib/Wave.svelte';
   import Cart from './lib/Cart.svelte';
   import Game from './lib/Game.svelte';
+  import Disasm from './lib/Disasm.svelte';
   import FileRail from './lib/FileRail.svelte';
   import GlobalDrop from './lib/GlobalDrop.svelte';
 
@@ -19,7 +20,7 @@
   let strings = $state(null);  // [{ offset, text }]
   let avgEntropy = $state(null); // number 0..8 (Shannon bits) | null
   let error  = $state('');
-  let view   = $state('inspect'); // 'inspect' | 'hex'
+  let view   = $state('inspect'); // 'inspect' | 'hex' | 'disasm' | ...
   let theme  = $state(currentTheme());
   let parsing = $state(false);
   let hexJumpTo = $state(null);
@@ -37,6 +38,7 @@
   const HINTS = {
     inspect: 'click a section/segment/string -> jump in HEX',
     hex:     'scroll or PgUp/PgDn, type a hex offset to jump, click the strip',
+    disasm:  'RV32IMA disassembly · PgUp/PgDn/Home/End to navigate · GOTO to jump by address',
     wave:    'click the canvas to seek · play / stop control the buffer',
     cart:    'rust-decoded header · switch to GAME to play',
     game:    'play the cart · arrows · Z/X = A/B · Enter = Start',
@@ -296,7 +298,12 @@
             title={format === 'gba' ? '' : 'GAME is GBA-only'}
             onclick={() => (view = 'game')}
           >GAME</button>
-          <button disabled title="DISASM lives in v1 today; v2 port is in flight">DISASM</button>
+          <button
+            class:on={view === 'disasm'}
+            disabled={format !== 'elf'}
+            title={format === 'elf' ? '' : 'DISASM is ELF-only (RV32)'}
+            onclick={() => (view = 'disasm')}
+          >DISASM</button>
           <button disabled title="EMU lives in v1 today; v2 port is in flight">EMU</button>
           <button disabled title="TRACE lives in v1 today; v2 port is in flight">TRACE</button>
         </nav>
@@ -323,6 +330,8 @@
               jumpTo={hexJumpTo}
               followTarget={gamePc?.follow && gamePc?.inCart ? gamePc : null}
             />
+          {:else if view === 'disasm'}
+            <Disasm bytes={file.bytes} {format} />
           {:else if view === 'wave'}
             <Wave bytes={file.bytes} />
           {:else if view === 'cart'}
