@@ -36,7 +36,7 @@
   // tracked text that surfaces what's available in the current pane.
   const HINTS = {
     inspect: 'click a section/segment/string -> jump in HEX',
-    hex:     'paginate with PAGE/ROW, type a hex offset to jump, click the strip',
+    hex:     'scroll or PgUp/PgDn, type a hex offset to jump, click the strip',
     wave:    'click the canvas to seek · play / stop control the buffer',
     cart:    'rust-decoded header · switch to GAME to play',
     game:    'play the cart · arrows · Z/X = A/B · Enter = Start',

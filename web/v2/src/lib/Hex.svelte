@@ -364,23 +364,29 @@
   let scrollRaf = 0;
   let ro;
 
+  let scrollHandler;
+
   onMount(() => {
     ro = new ResizeObserver(() => {
       viewportHeight = scrollEl.clientHeight;
       render();
     });
     ro.observe(scrollEl);
-    scrollEl.addEventListener('scroll', () => {
+    scrollHandler = () => {
       if (scrollRaf) return;
       scrollRaf = requestAnimationFrame(() => {
         scrollRaf = 0;
         scrollTopVal = scrollEl.scrollTop;
         render();
       });
-    }, { passive: true });
+    };
+    scrollEl.addEventListener('scroll', scrollHandler, { passive: true });
     render();
   });
-  onDestroy(() => { try { ro?.disconnect(); } catch (_) {} });
+  onDestroy(() => {
+    try { ro?.disconnect(); } catch (_) {}
+    if (scrollEl && scrollHandler) scrollEl.removeEventListener('scroll', scrollHandler);
+  });
 
   // ─── Effects ────────────────────────────────────
 
@@ -398,9 +404,12 @@
     return () => { cancelled = true; };
   });
 
-  // Bytes changed
+  // Bytes changed — guard against re-running when only `core` changes
+  let lastBytes = null;
   $effect(() => {
     const b = bytes;
+    if (b === lastBytes) return;
+    lastBytes = b;
     if (scrollEl) scrollEl.scrollTop = 0;
     scrollTopVal = 0;
     selectedOffset = null;
