@@ -3,7 +3,6 @@
   // OR-PICK-A-SAMPLE row backed by the same `samples/manifest.json` v1
   // serves, and the in-browser-synthesized RV32 demo. Sources v1's
   // demo-builder so there is exactly one source of truth.
-  import { buildDemoElf, DEMO_NAME } from '../../../v1/js/demo/rv32_demo.js';
   import { ensureWasm } from './wasm.js';
   import { readFile } from './loadFile.js';
 
@@ -69,11 +68,6 @@
     }
   }
 
-  function loadDemo() {
-    err = '';
-    onfile?.({ name: DEMO_NAME, bytes: buildDemoElf() });
-  }
-
   // Best-effort manifest fetch. Silently no-op if absent (dev server, etc).
   // After listing samples, fetch each one in parallel and compute a 12-block
   // entropy sparkline. Cached client-side for the session.
@@ -131,7 +125,6 @@
         <input type="file" hidden onchange={onPick} />
         <span>Choose file</span>
       </label>
-      <button class="pick demo" type="button" onclick={loadDemo}>Load RV32 demo</button>
     </div>
 
     {#if samples.length}

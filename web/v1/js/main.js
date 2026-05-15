@@ -72,7 +72,7 @@ function mount() {
   // Format-gated tabs: each entry says "this route is only valid when the
   // loaded file has this kind." Anything not listed here is universally OK
   // for any loaded file.
-  const KIND_GATED = { inspect: 'elf', wave: 'wav', cart: 'gba', game: 'gba' };
+  const KIND_GATED = { inspect: 'elf', wave: 'wav', cart: 'gba', game: 'gba', disasm: 'elf', emu: 'elf', trace: 'elf' };
 
   function showRoute(route) {
     const { bytes, kind } = fileStore.get();

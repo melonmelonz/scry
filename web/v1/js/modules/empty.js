@@ -85,13 +85,11 @@ function buildThumbPlaceholder() {
 export function createEmpty() {
   const input = el('input', { type: 'file', hidden: 'hidden' });
   const pick = el('button', { class: 'pick', type: 'button', text: 'Choose file' });
-  const demo = el('button', { class: 'pick demo', type: 'button', text: 'Load RV32 demo' });
   const samples = el('div', { class: 'samples' });
   const zone = el('div', { class: 'zone' }, [
     el('h2', { text: 'Drop a binary to begin.' }),
     el('p', { class: 'subtitle', text: 'ELF \u00B7 WAV \u00B7 GBA \u00B7 raw bytes' }),
     pick,
-    demo,
     input,
     samples
   ]);
@@ -145,9 +143,6 @@ export function createEmpty() {
   });
 
   pick.addEventListener('click', () => input.click());
-  demo.addEventListener('click', () => {
-    loadFile(DEMO_NAME, buildDemoElf());
-  });
   input.addEventListener('change', (e) => {
     const file = e.target.files?.[0];
     if (file) ingestFile(file);

@@ -35,18 +35,18 @@ const TABS = [
   },
   {
     id: 'disasm', label: 'DISASM',
-    enabled: () => hasFile(),
-    disabledReason: () => 'Load a file first',
+    enabled: () => isKind('elf'),
+    disabledReason: () => hasFile() ? 'DISASM is ELF-only (RV32)' : 'Load a file first',
   },
   {
     id: 'emu', label: 'EMU',
-    enabled: () => hasFile(),
-    disabledReason: () => 'Load a file first',
+    enabled: () => isKind('elf'),
+    disabledReason: () => hasFile() ? 'EMU is ELF-only (RV32)' : 'Load a file first',
   },
   {
     id: 'trace', label: 'TRACE',
-    enabled: () => hasFile(),
-    disabledReason: () => 'Load a file first',
+    enabled: () => isKind('elf'),
+    disabledReason: () => hasFile() ? 'TRACE is ELF-only' : 'Load a file first',
   },
 ];
 
