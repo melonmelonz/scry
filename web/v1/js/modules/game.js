@@ -28,28 +28,18 @@ function cartMetaText(bytes) {
   return `"${title}" \u00B7 ${code} \u00B7 ${fmtBytes(bytes.byteLength)}`;
 }
 
-function detectLandmarks(bytes) {
-  const marks = [];
-  if (bytes.byteLength < 0xC0) return marks;
+function buildDemoBar(bytes) {
+  if (!bytes || bytes.byteLength < 0xC0) return null;
+  // Decode entry point from ARM branch at 0x00
   const branchWord = (bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24)) >>> 0;
+  let entryOff = null;
   if ((branchWord >>> 24) === 0xEA) {
     let offset24 = branchWord & 0x00FFFFFF;
     if (offset24 & 0x800000) offset24 |= 0xFF000000;
     const target = (0x00 + 8 + (offset24 << 2)) >>> 0;
-    if (target < bytes.byteLength && target > 0xC0) {
-      marks.push({ off: target, label: 'ENTRY', desc: 'Code entry point (from branch at 0x00)' });
-    }
+    if (target < bytes.byteLength && target > 0xC0) entryOff = target;
   }
-  marks.push({ off: 0x00, label: 'BRANCH', desc: 'ARM branch instruction' });
-  marks.push({ off: 0x04, label: 'LOGO', desc: 'Nintendo logo bitmap (156 bytes)' });
-  marks.push({ off: 0xA0, label: 'HEADER', desc: 'Cartridge header (title, code, checksum)' });
-  marks.push({ off: 0xC0, label: 'POST-HDR', desc: 'First byte after the header' });
-  marks.sort((a, b) => {
-    if (a.label === 'ENTRY') return -1;
-    if (b.label === 'ENTRY') return 1;
-    return a.off - b.off;
-  });
-  return marks;
+  return { entryOff: entryOff ?? 0xC0 };
 }
 
 export function createGame() {
@@ -96,7 +86,7 @@ export function createGame() {
   const controls   = el('div', { class: 'g-controls' }, [playBtn, pauseBtn, resetBtn, followBtn, statusEl, hintEl]);
 
   const landmarksHost = el('div', { class: 'g-landmarks' });
-  const landmarksTitle = el('span', { class: 'g-landmarks-title', text: 'LANDMARKS' });
+  const landmarksTitle = el('span', { class: 'g-landmarks-title', text: 'QUICK NAV' });
 
   const gLeft      = el('div', { class: 'g-left' }, [canvasWrap, controls, landmarksHost]);
 
@@ -203,22 +193,43 @@ export function createGame() {
       replaceChildren(landmarksHost, []);
       return;
     }
-    const marks = detectLandmarks(currentBytes);
-    const buttons = marks.map(m => {
-      const b = el('button', {
-        class: 'g-lm-btn', type: 'button',
-        title: m.desc,
-      }, [
-        el('span', { class: 'g-lm-label', text: m.label }),
-        el('span', { class: 'g-lm-off', text: hex8(m.off) }),
-      ]);
-      b.addEventListener('click', () => {
-        miniHex.jumpTo(m.off);
-        gotoIn('hex', m.off, m.label === 'ENTRY' ? 4 : 1);
-      });
-      return b;
+    const info = buildDemoBar(currentBytes);
+    if (!info) { replaceChildren(landmarksHost, []); return; }
+
+    const headerBtn = el('button', { class: 'g-lm-btn', type: 'button', title: 'Jump to cartridge header (title, code, checksum)' }, [
+      el('span', { class: 'g-lm-label', text: 'HEADER' }),
+      el('span', { class: 'g-lm-off', text: hex8(0xA0) }),
+    ]);
+    headerBtn.addEventListener('click', () => {
+      miniHex.jumpTo(0xA0);
+      gotoIn('hex', 0xA0, 12);
     });
-    replaceChildren(landmarksHost, [landmarksTitle, ...buttons]);
+
+    const entryAddr = info.entryOff;
+    const entryBtn = el('button', { class: 'g-lm-btn', type: 'button', title: 'Jump to code entry point' }, [
+      el('span', { class: 'g-lm-label', text: 'ENTRY' }),
+      el('span', { class: 'g-lm-off', text: hex8(entryAddr) }),
+    ]);
+    entryBtn.addEventListener('click', () => {
+      miniHex.jumpTo(entryAddr);
+      gotoIn('hex', entryAddr, 4);
+    });
+
+    const demoBtn = el('button', { class: 'g-lm-btn g-lm-demo', type: 'button', title: 'Start emulation with PC follow enabled' }, [
+      el('span', { class: 'g-lm-label', text: 'RUN + FOLLOW' }),
+    ]);
+    demoBtn.addEventListener('click', () => {
+      if (!follow) {
+        follow = true;
+        followBtn.classList.add('g-follow-on');
+        followLab.textContent = 'FOLLOWING PC';
+        miniHex.setFollow(true);
+      }
+      if (!running) play();
+      canvas.focus();
+    });
+
+    replaceChildren(landmarksHost, [landmarksTitle, headerBtn, entryBtn, demoBtn]);
   }
 
   function handleMiniHexClick(off) {

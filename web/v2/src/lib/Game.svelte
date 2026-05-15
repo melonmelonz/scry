@@ -48,31 +48,20 @@
     return '0x' + (n >>> 0).toString(16).toUpperCase().padStart(8, '0');
   }
 
-  function detectLandmarks(b) {
-    const marks = [];
-    if (!b || b.byteLength < 0xC0) return marks;
+  function demoInfo(b) {
+    if (!b || b.byteLength < 0xC0) return null;
     const branchWord = (b[0] | (b[1] << 8) | (b[2] << 16) | (b[3] << 24)) >>> 0;
+    let entryOff = null;
     if ((branchWord >>> 24) === 0xEA) {
       let offset24 = branchWord & 0x00FFFFFF;
       if (offset24 & 0x800000) offset24 |= 0xFF000000;
       const target = (0x00 + 8 + (offset24 << 2)) >>> 0;
-      if (target < b.byteLength && target > 0xC0) {
-        marks.push({ off: target, label: 'ENTRY', desc: 'Code entry point (from branch at 0x00)' });
-      }
+      if (target < b.byteLength && target > 0xC0) entryOff = target;
     }
-    marks.push({ off: 0x00, label: 'BRANCH', desc: 'ARM branch instruction' });
-    marks.push({ off: 0x04, label: 'LOGO', desc: 'Nintendo logo bitmap (156 bytes)' });
-    marks.push({ off: 0xA0, label: 'HEADER', desc: 'Cartridge header (title, code, checksum)' });
-    marks.push({ off: 0xC0, label: 'POST-HDR', desc: 'First byte after the header' });
-    marks.sort((a, b) => {
-      if (a.label === 'ENTRY') return -1;
-      if (b.label === 'ENTRY') return 1;
-      return a.off - b.off;
-    });
-    return marks;
+    return { entryOff: entryOff ?? 0xC0 };
   }
 
-  let landmarks = $derived(detectLandmarks(bytes));
+  let demoBar = $derived(demoInfo(bytes));
 
   function publishPc() {
     onPcUpdate?.({
@@ -319,16 +308,23 @@
         <span class="g-status">{status}</span>
         <span class="g-hint">arrows = D-pad &middot; Z/X = A/B &middot; Enter = Start</span>
       </div>
-      {#if landmarks.length}
+      {#if demoBar}
         <div class="g-landmarks">
-          <span class="g-landmarks-title">LANDMARKS</span>
-          {#each landmarks as m}
-            <button class="g-lm-btn" type="button" title={m.desc}
-              onclick={() => { cursor = m.off; }}>
-              <span class="g-lm-label">{m.label}</span>
-              <span class="g-lm-off">{hex8(m.off)}</span>
-            </button>
-          {/each}
+          <span class="g-landmarks-title">QUICK NAV</span>
+          <button class="g-lm-btn" type="button" title="Jump to cartridge header"
+            onclick={() => { cursor = 0xA0; }}>
+            <span class="g-lm-label">HEADER</span>
+            <span class="g-lm-off">{hex8(0xA0)}</span>
+          </button>
+          <button class="g-lm-btn" type="button" title="Jump to code entry point"
+            onclick={() => { cursor = demoBar.entryOff; }}>
+            <span class="g-lm-label">ENTRY</span>
+            <span class="g-lm-off">{hex8(demoBar.entryOff)}</span>
+          </button>
+          <button class="g-lm-btn g-lm-demo" type="button" title="Start emulation with PC follow"
+            onclick={() => { if (!follow) follow = true; if (!running) play(); canvas.focus(); publishPc(); }}>
+            <span class="g-lm-label">RUN + FOLLOW</span>
+          </button>
         </div>
       {/if}
     </div>
@@ -396,7 +392,7 @@
   .g-split {
     flex: 1; min-height: 0;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
     gap: 18px;
     padding: 14px 0 0;
   }
@@ -601,4 +597,12 @@
   }
   .g-lm-label { font-weight: 600; }
   .g-lm-off { color: var(--muted); font-size: 8px; }
+  .g-lm-demo {
+    border-color: var(--mint-deep);
+    background: var(--mint-pale);
+  }
+  .g-lm-demo:hover {
+    background: var(--mint-deep);
+    color: var(--paper);
+  }
 </style>

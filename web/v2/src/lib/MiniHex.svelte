@@ -9,7 +9,7 @@
   // virtual-offset mapping when the cart is larger than that. Rows are
   // absolute-positioned inside a sizer div.
 
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, untrack } from 'svelte';
 
   let { bytes, cursor = null, follow = false, onByteClick = null } = $props();
 
@@ -287,13 +287,17 @@
   onDestroy(() => { try { ro?.disconnect(); } catch (_) {} });
 
   // React to byte changes: reset scroll position and land on the cart header.
+  // Reading `bytes` here registers this effect; the render() and jumpTo()
+  // calls are wrapped in untrack() so they don't pull cursor/hoveredField/
+  // selectedOffset into this effect's dependency set (which would cause it
+  // to re-fire on every cursor move and reset scroll position).
   $effect(() => {
     if (bytes !== lastBytes) {
       lastBytes = bytes;
       lastCursorRow = -1;
       selectedOffset = null;
       if (scroll) scroll.scrollTop = 0;
-      render();
+      untrack(() => render());
       // Jump to the cartridge header on first paint of a new ROM.
       if (bytes && bytes.byteLength >= 0xC0) {
         requestAnimationFrame(() => jumpTo(0xA0));
@@ -303,7 +307,9 @@
 
   // Cursor tracker: repaint when the cursor row changes, optionally chase it
   // if follow mode is on. Reading `cursor`/`follow` here registers the effect
-  // for Svelte's reactive graph.
+  // for Svelte's reactive graph. render()/scrollCursorIntoView() are wrapped
+  // in untrack() so they don't pull hoveredField/selectedOffset into this
+  // effect (which would make cursor-row changes re-fire on hover or click).
   let lastFollow = false;
   $effect(() => {
     const c = cursor;
@@ -315,7 +321,7 @@
     lastFollow = f;
     if (row === lastCursorRow && !followFlipped) return;
     lastCursorRow = row;
-    render();
+    untrack(() => render());
     // Snap on cursor move (when following) OR on the moment FOLLOW flips on,
     // so the user sees something happen the instant they hit the toggle.
     if (f) requestAnimationFrame(scrollCursorIntoView);

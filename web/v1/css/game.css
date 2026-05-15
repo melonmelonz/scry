@@ -21,7 +21,7 @@
 .g-split {
   flex: 1; min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   gap: 18px;
   padding: 14px 0 0;
 }
@@ -213,6 +213,14 @@
 }
 .g-lm-label { font-weight: 600; }
 .g-lm-off { color: var(--muted); font-size: 8px; }
+.g-lm-demo {
+  border-color: var(--mint-deep);
+  background: var(--mint-pale);
+}
+.g-lm-demo:hover {
+  background: var(--mint-deep);
+  color: var(--paper);
+}
 
 /* ── MiniHex.svelte ─────────────────────────────────────────────────── */
 .mh-host {
