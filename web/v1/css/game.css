@@ -265,3 +265,15 @@
 .mh-cell.mh-selected, .mh-char.mh-selected {
   animation: mh-byte-pop 200ms ease-out;
 }
+
+/* --- MiniHex overlays --- */
+.mh-cell.mh-ovr, .mh-char.mh-ovr {
+  background: var(--mint-pale);
+}
+.mh-cell.mh-ovr:hover, .mh-char.mh-ovr:hover {
+  background: var(--mint);
+  cursor: help;
+}
+.mh-cell.mh-hot, .mh-char.mh-hot {
+  background: var(--mint);
+}

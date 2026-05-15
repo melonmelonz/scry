@@ -14,6 +14,7 @@
 
 import { el } from '../dom.js';
 import { hex2, hex8, asciiCh } from '../fmt.js';
+import { GBA_HEADER_OVERLAY, findOverlayAt, decodeField, formatDecoded } from '../hex/overlays.js';
 
 const ROW_BYTES = 16;
 const ROW_HEIGHT = 20;
@@ -66,11 +67,17 @@ function buildRowCells(rowIdx, b) {
   return { addr: hex8(off), hex, asc };
 }
 
-function paintCellRun(host, cells, selectedOffset, cursorOffset) {
+function paintCellRun(host, cells, selectedOffset, cursorOffset, hotField) {
   host.textContent = '';
   cells.forEach((cell, idx) => {
+    const f = findOverlayAt(GBA_HEADER_OVERLAY, cell.off);
+    const classes = ['mh-cell'];
+    if (f) classes.push('mh-ovr');
+    if (hotField && f === hotField) classes.push('mh-hot');
+    if (cell.off === selectedOffset) classes.push('mh-selected');
+    if (cell.off === cursorOffset) classes.push('mh-pc-byte');
     const s = el('span', {
-      class: `mh-cell${cell.off === selectedOffset ? ' mh-selected' : ''}${cell.off === cursorOffset ? ' mh-pc-byte' : ''}`,
+      class: classes.join(' '),
       dataset: { off: String(cell.off) },
       text: cell.text,
     });
@@ -81,11 +88,17 @@ function paintCellRun(host, cells, selectedOffset, cursorOffset) {
   });
 }
 
-function paintAsciiRun(host, cells, selectedOffset, cursorOffset) {
+function paintAsciiRun(host, cells, selectedOffset, cursorOffset, hotField) {
   host.textContent = '';
   cells.forEach(cell => {
+    const f = findOverlayAt(GBA_HEADER_OVERLAY, cell.off);
+    const classes = ['mh-char'];
+    if (f) classes.push('mh-ovr');
+    if (hotField && f === hotField) classes.push('mh-hot');
+    if (cell.off === selectedOffset) classes.push('mh-selected');
+    if (cell.off === cursorOffset) classes.push('mh-pc-byte');
     host.appendChild(el('span', {
-      class: `mh-char${cell.off === selectedOffset ? ' mh-selected' : ''}${cell.off === cursorOffset ? ' mh-pc-byte' : ''}`,
+      class: classes.join(' '),
       dataset: { off: String(cell.off) },
       text: cell.text,
     }));
@@ -123,6 +136,7 @@ export function createMiniHex(opts = {}) {
   let cursorOffset = -1;
   let selectedOffset = -1;
   let followOn = false;
+  let hoveredField = null;
 
   function ensurePool(n) {
     while (rowPool.length < n) {
@@ -165,8 +179,8 @@ export function createMiniHex(opts = {}) {
       node.style.top = `${range.topPx + i * ROW_HEIGHT}px`;
       const [a, h, c] = node.children;
       a.textContent = cells.addr;
-      paintCellRun(h, cells.hex, selectedOffset, cursorOffset);
-      paintAsciiRun(c, cells.asc, selectedOffset, cursorOffset);
+      paintCellRun(h, cells.hex, selectedOffset, cursorOffset, hoveredField);
+      paintAsciiRun(c, cells.asc, selectedOffset, cursorOffset, hoveredField);
       node.classList.toggle('mh-cursor', rowIdx === cursorRow);
       if (node.parentNode !== sizer) sizer.appendChild(node);
     }
@@ -228,14 +242,23 @@ export function createMiniHex(opts = {}) {
   }
 
   function renderDetail() {
-    const d = byteDetail(bytes, selectedOffset >= 0 ? selectedOffset : cursorOffset);
+    const off = selectedOffset >= 0 ? selectedOffset : cursorOffset;
+    const f = findOverlayAt(GBA_HEADER_OVERLAY, off);
+    if (f && bytes) {
+      const v = decodeField(bytes, f);
+      detail.textContent = `${f.name} \u00B7 ${formatDecoded(v, f)}${f.description ? ' \u00B7 ' + f.description : ''}`;
+      return;
+    }
+    const d = byteDetail(bytes, off);
     if (!d) {
       detail.textContent = bytes ? 'select a byte' : 'no ROM loaded';
       return;
     }
+    const bin = d.v.toString(2).padStart(8, '0');
     const bits = [
       `OFF ${hex8(d.off)}`,
       `BYTE 0x${hex2(d.v)} (${d.v})`,
+      `b${bin}`,
       `ASCII '${d.ascii}'`,
     ];
     if (d.u16 !== null) bits.push(`U16LE 0x${d.u16.toString(16).toUpperCase().padStart(4, '0')}`);
@@ -248,6 +271,20 @@ export function createMiniHex(opts = {}) {
     const raw = jumpInput.value.trim().replace(/^0x/i, '');
     const n = parseInt(raw, 16);
     if (Number.isFinite(n)) jumpTo(n);
+  });
+
+  scroll.addEventListener('mouseover', (e) => {
+    const t = e.target.closest('[data-off]');
+    if (!t || !bytes) return;
+    const off = Number(t.dataset.off);
+    const f = findOverlayAt(GBA_HEADER_OVERLAY, off);
+    if (f !== hoveredField) {
+      hoveredField = f;
+      render();
+    }
+  });
+  scroll.addEventListener('mouseleave', () => {
+    if (hoveredField) { hoveredField = null; render(); }
   });
 
   scroll.addEventListener('click', (e) => {

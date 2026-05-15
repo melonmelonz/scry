@@ -39,6 +39,40 @@
   function hex8(n) { return '0x' + (n >>> 0).toString(16).padStart(8, '0').toUpperCase(); }
   function asciiCh(n) { return (n >= 0x20 && n <= 0x7E) ? String.fromCharCode(n) : '.'; }
 
+  const GBA_HEADER_OVERLAY = [
+    { offset: 0x000, size: 4,   name: 'entry.branch',     type: 'bytes',  description: 'ARM branch' },
+    { offset: 0x004, size: 156, name: 'nintendo.logo',     type: 'bytes',  description: 'Nintendo logo bitmap' },
+    { offset: 0x0A0, size: 12,  name: 'game.title',        type: 'string', description: 'Cartridge title' },
+    { offset: 0x0AC, size: 4,   name: 'game.code',         type: 'string', description: 'Game code' },
+    { offset: 0x0B0, size: 2,   name: 'maker.code',        type: 'string', description: 'Maker code' },
+    { offset: 0x0B2, size: 1,   name: 'fixed.0x96',        type: 'u8',     description: 'BIOS fixed byte' },
+    { offset: 0x0B3, size: 1,   name: 'unit.code',         type: 'u8' },
+    { offset: 0x0B4, size: 1,   name: 'device.type',       type: 'u8' },
+    { offset: 0x0B5, size: 7,   name: 'reserved',          type: 'bytes' },
+    { offset: 0x0BC, size: 1,   name: 'software.version',  type: 'u8' },
+    { offset: 0x0BD, size: 1,   name: 'complement.checksum', type: 'u8', description: 'Header checksum' },
+    { offset: 0x0BE, size: 2,   name: 'reserved.tail',     type: 'bytes' },
+  ];
+
+  function findOverlayAt(off) {
+    for (const f of GBA_HEADER_OVERLAY) {
+      if (off >= f.offset && off < f.offset + f.size) return f;
+    }
+    return null;
+  }
+
+  function readOverlayValue(f) {
+    if (!bytes || f.offset + f.size > bytes.byteLength) return '-';
+    if (f.type === 'string') {
+      return Array.from(bytes.subarray(f.offset, f.offset + f.size))
+        .map(b => b >= 0x20 && b <= 0x7E ? String.fromCharCode(b) : '.').join('').trim();
+    }
+    if (f.type === 'u8') return `0x${hex2(bytes[f.offset])} (${bytes[f.offset]})`;
+    return Array.from(bytes.subarray(f.offset, f.offset + f.size)).map(hex2).join(' ');
+  }
+
+  let hoveredField = $state(null);
+
   function virtualGeometry(totalRows, rowHeight) {
     const naturalPx = Math.max(0, totalRows * rowHeight);
     if (naturalPx <= MAX_PHYSICAL_PX) return { physicalPx: naturalPx, scale: 1 };
@@ -82,6 +116,9 @@
       const cell = cells[i];
       const s = document.createElement('span');
       s.className = cls;
+      const f = findOverlayAt(cell.off);
+      if (f) s.classList.add('mh-ovr');
+      if (hoveredField && f === hoveredField) s.classList.add('mh-hot');
       if (cell.off === selectedOffset) s.classList.add('mh-selected');
       if (cell.off === cursorOffset) s.classList.add('mh-pc-byte');
       s.dataset.off = String(cell.off);
@@ -96,7 +133,13 @@
   function selectedDetail() {
     const off = selectedOffset ?? cursor;
     if (!bytes || typeof off !== 'number' || off < 0 || off >= bytes.byteLength) return null;
+    const f = findOverlayAt(off);
+    if (f) {
+      const v = readOverlayValue(f);
+      return `${f.name} \u00B7 ${v}${f.description ? ' \u00B7 ' + f.description : ''}`;
+    }
     const v = bytes[off];
+    const bin = v.toString(2).padStart(8, '0');
     const u16 = off + 1 < bytes.byteLength ? (bytes[off] | (bytes[off + 1] << 8)) : null;
     const u32 = off + 3 < bytes.byteLength
       ? ((bytes[off] | (bytes[off + 1] << 8) | (bytes[off + 2] << 16) | (bytes[off + 3] << 24)) >>> 0)
@@ -104,6 +147,7 @@
     const parts = [
       `OFF ${hex8(off)}`,
       `BYTE 0x${hex2(v)} (${v})`,
+      `b${bin}`,
       `ASCII '${asciiCh(v)}'`,
     ];
     if (u16 !== null) parts.push(`U16LE 0x${u16.toString(16).toUpperCase().padStart(4, '0')}`);
@@ -219,6 +263,17 @@
     onScrollClick(e);
   }
 
+  function onScrollHover(e) {
+    const t = e.target.closest('[data-off]');
+    if (!t || !bytes) return;
+    const off = Number(t.dataset.off);
+    const f = findOverlayAt(off);
+    if (f !== hoveredField) { hoveredField = f; render(); }
+  }
+  function onScrollLeave() {
+    if (hoveredField) { hoveredField = null; render(); }
+  }
+
   let ro;
   onMount(() => {
     ro = new ResizeObserver(() => {
@@ -277,7 +332,7 @@
       <input bind:this={jumpInput} type="text" placeholder="0x..." class="mh-jump" aria-label="jump to offset" />
     </form>
   </div>
-  <div class="mh-scroll" bind:this={scroll} role="grid" tabindex="0" onclick={onScrollClick} onkeydown={onScrollKeydown}>
+  <div class="mh-scroll" bind:this={scroll} role="grid" tabindex="0" onclick={onScrollClick} onkeydown={onScrollKeydown} onmouseover={onScrollHover} onmouseleave={onScrollLeave}>
     <div class="mh-sizer" bind:this={sizer}></div>
   </div>
   <div class="mh-detail">{selectedDetail() ?? (bytes ? 'select a byte' : 'no ROM loaded')}</div>
@@ -364,5 +419,14 @@
   }
   :global(.mh-cell.mh-selected), :global(.mh-char.mh-selected) {
     animation: mh-byte-pop 200ms ease-out;
+  }
+  :global(.mh-cell.mh-ovr), :global(.mh-char.mh-ovr) {
+    background: var(--mint-pale);
+  }
+  :global(.mh-cell.mh-ovr:hover), :global(.mh-char.mh-ovr:hover) {
+    background: var(--mint); cursor: help;
+  }
+  :global(.mh-cell.mh-hot), :global(.mh-char.mh-hot) {
+    background: var(--mint);
   }
 </style>
