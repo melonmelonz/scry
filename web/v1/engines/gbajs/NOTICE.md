@@ -3,7 +3,8 @@
 This directory vendors the JavaScript GBA emulator originally written by
 **Jeffrey Pfau** (endrift) and maintained as the **gbajs2** community
 fork by **Andrew Chase** (andychase). Both are licensed under the
-2-clause BSD license (see `COPYING`).
+2-clause BSD license (see `COPYING`). A note that this was forked here for this project 
+and has some outsiding changes that were needed to get this to work inside the project.
 
 Upstream:
 - Original (archived): <https://github.com/endrift/gbajs>
