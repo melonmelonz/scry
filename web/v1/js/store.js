@@ -38,13 +38,30 @@ export class Store {
     return () => this.#subs.delete(fn);
   }
 
+  #notifying = false;
+
   #notify() {
-    let i = 0;
-    for (const fn of this.#subs) {
-      const label = `[scry/dbg] store#${i++} ${fn.__dbg || fn.name || 'anon'}`;
-      console.time(label);
-      try { fn(this.#value); }
-      finally { console.timeEnd(label); }
+    // Snapshot the subscriber set before iterating. Without this, a
+    // subscriber that triggers a nested store.set (e.g. showRoute ->
+    // router.go -> router.store.set -> showRoute -> createGame ->
+    // fileStore.subscribe) would add a new subscriber to the Set mid-
+    // iteration. JS Set iteration visits newly-added entries, so the
+    // new subscriber fires twice: once from subscribe(fn) and once from
+    // the outer loop. Firefox surfaces this as a visible double-render;
+    // Chrome hides it behind faster paint. Snapshotting prevents it.
+    if (this.#notifying) return;
+    this.#notifying = true;
+    try {
+      const snapshot = [...this.#subs];
+      let i = 0;
+      for (const fn of snapshot) {
+        const label = `[scry/dbg] store#${i++} ${fn.__dbg || fn.name || 'anon'}`;
+        console.time(label);
+        try { fn(this.#value); }
+        finally { console.timeEnd(label); }
+      }
+    } finally {
+      this.#notifying = false;
     }
   }
 }
