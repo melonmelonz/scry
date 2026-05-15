@@ -370,7 +370,7 @@
 
   .mh-scroll {
     flex: 1; min-height: 0;
-    overflow-y: auto; overflow-x: hidden;
+    overflow-y: auto; overflow-x: auto;
     position: relative;
     padding: 6px 0;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;

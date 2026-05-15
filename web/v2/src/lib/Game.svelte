@@ -392,7 +392,7 @@
   .g-split {
     flex: 1; min-height: 0;
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 18px;
     padding: 14px 0 0;
   }
